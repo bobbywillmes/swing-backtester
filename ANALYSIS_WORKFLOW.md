@@ -4,49 +4,53 @@ This guide walks through analyzing your trading data end-to-end.
 
 ## Quick Start
 
-### 1. Import Your Trades
-```bash
-npx tsx scripts/import-trades.ts --file ./data/orders.csv
-```
-
-**Output:**
-- 9 ActualOrder records (raw orders from E*TRADE)
-- 5 ActualTrade records (paired buy/sell entries)
-- 1 open trade (buy without matching sell)
-
-### 2. Ingest Market Data
-For each ticker in your trades, fetch 5-minute candles from Massive.com:
+### 1. Ingest Market Data
+Fetch 5-minute candles from Massive.com for your tickers. Edit the config in the script or use bulk ingestion:
 
 ```bash
-# SPY — May 1 to May 16, 2026
-npx tsx scripts/ingest-ohlc.ts --ticker SPY --from 2026-05-01 --to 2026-05-16
+# Bulk ingest (edit TICKERS and date range in script first)
+npm run ingest-ohlc-bulk
 
-# AAPL
-npx tsx scripts/ingest-ohlc.ts --ticker AAPL --from 2026-05-01 --to 2026-05-16
-
-# META
-npx tsx scripts/ingest-ohlc.ts --ticker META --from 2026-05-01 --to 2026-05-16
+# Or single ticker
+npm run ingest-ohlc -- --ticker SPY --from 2026-05-01 --to 2026-05-16
 ```
 
 **Why the date range?**
 - Start a few days before your first trade (to catch any pre-entry candles)
 - End after your last trade (to evaluate full exit window)
 
-### 3. Create Exit Scenarios
-Pre-populated with 6 scenarios:
+### 2. Create Exit Scenarios
+Pre-populated with 6 parameterized scenarios (idempotent upsert):
 ```bash
 npx tsx scripts/create-scenarios.ts
 ```
 
-Or create custom scenarios:
+Scenarios include:
+1. Fixed +1% Target
+2. Fixed -1.5% Stop
+3. Trail 0.5% (activate at +0.5%)
+4. Trail 1% (activate at +1%)
+5. 1 Day Max Hold
+6. +1% Target OR Trail 0.5%
+
+### 3. Import Your Trades
+Load your E*TRADE CSV export and auto-create any missing securities:
+
 ```bash
-# Example: Custom trailing stop
-npx tsx scripts/create-scenarios.ts  # Shows how to add more via the UI later
+npm run import-trades -- --file data/orders.csv
 ```
 
+**Output:**
+- ActualOrder records (raw orders from E*TRADE)
+- ActualTrade records (paired buy/sell entries)
+- Open trades (buys without matching sells)
+- Auto-created securities if any tickers were missing
+
 ### 4. Run Backtest
+Simulate all exit scenarios against your actual trades:
+
 ```bash
-npx tsx scripts/run-backtest.ts --name "May 2026 Analysis" --description "Full month of trades"
+npm run run-backtest -- --name "Full Portfolio Analysis" --description "All 162 trades"
 ```
 
 **Options:**
@@ -54,14 +58,51 @@ npx tsx scripts/run-backtest.ts --name "May 2026 Analysis" --description "Full m
 - `--dateFrom 2026-05-01` — only backtest trades from this date
 - `--dateTo 2026-05-16` — only backtest trades through this date
 
-### 5. View Results
+### 5. Export Results to Excel
+Generate CSVs for analysis:
+
+```bash
+# Export latest run
+npm run export-results
+
+# Or export specific run
+npm run export-results -- --runId 5
+```
+
+**Outputs** to `exports/`:
+- `run-{id}-rankings.csv` — Scenario comparison with composite scores
+- `run-{id}-scenario-trades.csv` — All trades × all scenarios (972 rows for 162 orders)
+  - Includes: Order ID, Entry/Exit timestamps, Scenario name, P&L metrics
+  - Timestamps in Excel-friendly format: `2024-10-04 09:59:25 AM EDT`
+- `run-{id}-metadata.csv` — Run details (name, date, filters applied)
+
+### 6. View Console Results
 ```bash
 # List all backtests
-npx tsx scripts/list-runs.ts
+npm run list-runs
 
-# View detailed results for run #1
-npx tsx scripts/print-results.ts --runId 1
+# View detailed results for a run
+npm run print-results -- --runId 5
 ```
+
+---
+
+## Cleaning Up & Re-importing
+
+If you need to reset your trade data and start fresh (e.g., after adding new orders):
+
+```bash
+# Reset all trade/backtest data (keeps OHLC candles + scenarios)
+npm run cleanup-trades
+
+# Then re-import fresh
+npm run import-trades -- --file data/orders.csv
+
+# Run backtest again
+npm run run-backtest -- --name "Fresh Analysis" --description "..."
+```
+
+This is safe and idempotent — you'll re-fetch the same OHLC candles from the cache (no API calls).
 
 ---
 
@@ -146,11 +187,19 @@ Edit `scripts/create-scenarios.ts` to add your own:
 Then:
 ```bash
 npx tsx scripts/create-scenarios.ts
-npx tsx scripts/run-backtest.ts --name "May 2026 v2"
-npx tsx scripts/print-results.ts --runId <new_run_id>
+npm run run-backtest -- --name "May 2026 v2"
+npm run print-results -- --runId <new_run_id>
+npm run export-results -- --runId <new_run_id>
 ```
 
-### Compare Scenarios
+### Analyze Rankings
+Each run generates a composite score (0-100) based on:
+- **20%** Win Rate: % of trades that were profitable
+- **20%** Profit Factor: gross profit / gross loss (>1.0 is good)
+- **20%** Expectancy: average $ per trade
+- **20%** Improvement Rate: % of trades that beat your actual exit
+- **20%** Average PnL: total profit / # trades
+
 Rankings automatically highlight:
 - **Strengths**: "High win rate", "Beats actual trades", "Patient strategy"
 - **Weaknesses**: "Profit factor < 1", "Many open positions"
@@ -171,33 +220,46 @@ Focus on scenarios with:
 # Then ingest candles covering that range + buffer
 
 # Example: trades from May 4-10
-npx tsx scripts/ingest-ohlc.ts --ticker SPY --from 2026-05-01 --to 2026-05-16
-#                                                  ↑ few days before
-#                                                                ↑ few days after
+npm run ingest-ohlc -- --ticker SPY --from 2026-05-01 --to 2026-05-16
+#                                         ↑ few days before
+#                                                         ↑ few days after
 ```
 
 ### 2. Filtering Backtests
 ```bash
 # Only backtest specific tickers
-npx tsx scripts/run-backtest.ts --name "SPY Only" --ticker SPY
+npm run run-backtest -- --name "SPY Only" --ticker SPY
 
 # Only backtest recent trades
-npx tsx scripts/run-backtest.ts --name "May 10+" --dateFrom 2026-05-10
+npm run run-backtest -- --name "May 10+" --dateFrom 2026-05-10
 
 # Combine filters
-npx tsx scripts/run-backtest.ts --name "SPY May 10+" --ticker SPY --dateFrom 2026-05-10
+npm run run-backtest -- --name "SPY May 10+" --ticker SPY --dateFrom 2026-05-10
 ```
 
-### 3. Scaling Tests
+### 3. Batch Testing & Iteration
 ```bash
-# Test more scenarios → edit src/services/scenario.service.ts
-# Add new scenario types (e.g., hybrid fixed + trail)
-# Re-run backtest, compare results
+# Add custom scenarios
+# Edit scripts/create-scenarios.ts
+# Re-run: npx tsx scripts/create-scenarios.ts
 
-# Test different date ranges
-# Run backtest for different months separately
-# Spot trends (e.g., "trailing stops work better in volatile months")
+# Run backtest with new scenarios
+npm run run-backtest -- --name "Strategy v2"
+
+# Compare with previous runs
+npm run list-runs
+npm run export-results -- --runId 5  # Compare runs side-by-side in Excel
+npm run export-results -- --runId 6
 ```
+
+### 4. Excel Analysis Workflow
+After exporting:
+1. Open `exports/run-{id}-rankings.csv` to see scenario rankings
+2. Open `exports/run-{id}-scenario-trades.csv` for trade-by-trade details
+   - Filter by Scenario to see all instances of a single strategy
+   - Sort by "vs Actual $" to find highest-upside trades
+   - Check "Trail Activated" timestamp to understand exit dynamics
+3. Compare across multiple runs to validate strategy consistency
 
 ---
 
@@ -224,15 +286,22 @@ npx tsx scripts/run-backtest.ts --name "SPY May 10+" --ticker SPY --dateFrom 202
 
 ---
 
-## Next Steps
+## Typical Analysis Workflow
 
-1. ✅ Import your full orders
-2. ✅ Ingest candles for your tickers
-3. ✅ Run backtest with default scenarios
-4. ✅ Analyze results, spot patterns
-5. 🔄 Create custom scenarios based on insights
-6. 🔄 Re-run backtest, compare
-7. 📊 Build your trading playbook from top-ranked scenarios
+1. ✅ **Setup** — Ingest OHLC candles for your date range
+2. ✅ **Create Scenarios** — Load 6 default parameterized exit strategies
+3. ✅ **Import** — Load E*TRADE CSV and pair buy/sell orders
+4. ✅ **Run Backtest** — Simulate all exit strategies bar-by-bar
+5. ✅ **Export to Excel** — Generate CSVs with rankings and trade details
+6. 🔄 **Analyze** — Identify which scenarios beat your actual trades
+7. 🔄 **Iterate** — Create custom scenarios and re-run
+8. 🔄 **Optimize** — Spot patterns (trailing stops work better in X market condition)
+9. 📊 **Build Playbook** — Codify your best-performing exit strategies
+
+Once you've identified top performers, consider:
+- Trading them live with paper money first
+- A/B testing against your current fixed-target approach
+- Documenting entry signals and exit rules for consistency
 
 ---
 

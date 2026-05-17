@@ -73,10 +73,15 @@ swing-backtester/
       date.utils.ts           # market day helpers, EST/EDT handling
       csv.utils.ts            # shared CSV parsing helpers
   scripts/
-    ingest-ohlc.ts            # CLI: fetch + store candles for ticker/range
-    import-trades.ts          # CLI: load E*TRADE CSV export
-    run-backtest.ts           # CLI: run engine, write results to db
-    print-results.ts          # CLI: query + display BacktestSummary
+    ingest-ohlc.ts           # CLI: fetch + store candles for single ticker
+    ingest-ohlc-bulk.ts      # CLI: fetch + store candles for multiple tickers (config-driven)
+    import-trades.ts         # CLI: load E*TRADE CSV export, auto-create missing securities
+    create-scenarios.ts      # CLI: seed 6 default exit scenarios (idempotent upsert)
+    run-backtest.ts          # CLI: run engine, write results to db, display summary
+    print-results.ts         # CLI: query + display BacktestSummary with rankings
+    export-results.ts        # CLI: export CSVs (rankings, all scenario trades, metadata)
+    list-runs.ts             # CLI: list all backtest runs with status
+    cleanup-trades.ts        # CLI: reset trade/backtest data (keeps OHLC + scenarios)
   docker-compose.yml
   .env.example
   tsconfig.json
@@ -551,10 +556,22 @@ Build in this sequence. Each step is independently testable before moving on.
 16. `src/engine/backtest.engine.ts` — outer loop, uses ohlc.service + exit-evaluator
 17. `src/services/backtest.service.ts` — orchestrates engine + writes BacktestTrade + BacktestSummary
 
-### Phase 5 — Results
-18. `src/analysis/metrics.calculator.ts` — aggregation logic
-19. `scripts/run-backtest.ts` — CLI: create BacktestRun, run engine, print summary
-20. `scripts/print-results.ts` — CLI: query and display results for a run
+### Phase 5 — Results Analysis
+18. `src/analysis/metrics.calculator.ts` — aggregation logic (profit factor, expectancy, improvement rate)
+19. `src/analysis/scenario.ranker.ts` — weighted scoring and scenario comparison
+20. `src/services/results.service.ts` — query helpers for runs, trades, and summaries
+21. `scripts/run-backtest.ts` — CLI: create BacktestRun, run engine, print summary
+22. `scripts/print-results.ts` — CLI: query and display detailed results for a run
+23. `scripts/list-runs.ts` — CLI: list all backtest runs with status and counts
+
+### Phase 6 — Export & Cleanup
+24. `src/services/results.service.ts` enhancements — `getMostRecentRun()`, `getRunAllTrades()` with deduplication
+25. `scripts/export-results.ts` — CLI: export 3 CSVs (rankings, scenario trades detail, metadata)
+    - Optional `--runId` parameter (defaults to most recent run)
+    - Includes Order ID, Scenario name, EST/EDT-formatted timestamps for Excel
+    - 972 rows for 162 orders × 6 scenarios (zero duplicates)
+26. `scripts/cleanup-trades.ts` — CLI: safely reset ActualOrder/ActualTrade/BacktestRun data
+    - Preserves OhlcCandle (expensive to re-fetch) and ExitScenario (parameterized)
 
 ---
 
@@ -609,10 +626,20 @@ Phase 2: OHLC Ingestion (#7)
 
 ---
 
-## What This Is NOT (Yet)
+## Scope & Limitations
 
-- Not a live trading system
-- Not connected to any broker
-- No Express API / no web UI (CLI only for v0)
-- No multi-add / campaign tracking (v0 pairs first BUY → first SELL only)
-- No intraday entry signal generation (engine starts from known actual entry points)
+**In Scope (Complete)**:
+- Historical swing trade analysis with bar-by-bar engine simulation
+- Trailing stop state machine with running high tracking
+- 6 configurable exit scenarios (fixed target, hard stop, trailing stops, time-based)
+- Composite metric ranking (win rate, profit factor, expectancy, improvement rate)
+- CSV export for Excel analysis with proper datetime formatting
+- Data cleanup workflow for iterative analysis
+
+**Out of Scope (v1)**:
+- Live trading system or broker connection
+- Web UI / API (CLI + Excel exports only)
+- Multi-add / pyramid trading (pairs first BUY → first SELL only)
+- Intraday entry signal generation (backtester uses known historical entry points)
+- Options, futures, or crypto
+- Risk metrics beyond profit factor (Sharpe, Sortino, VaR, drawdown analysis)
