@@ -204,6 +204,35 @@ Use this as sanity check if you run new backtests.
 
 ---
 
+## 📝 Git Commit Style
+
+**Format**: `type(scope): description`
+
+**Types**:
+- `feat` — New feature or capability
+- `fix` — Bug fix
+- `docs` — Documentation only
+- `refactor` — Code refactoring (no behavior change)
+- `test` — Test additions or fixes
+- `chore` — Build, dependencies, tooling
+- `db` — Database migrations or schema changes
+
+**Scope** (in parentheses): Area being changed
+- Examples: `db`, `engine`, `exports`, `ingestion`, `services`, `scripts`
+
+**Description**: Clear, imperative mood, what was done
+
+**Examples**:
+```
+feat(db): v2 migration, add RegimeType enum & MarketRegime model
+feat(exports): update flat file in export-results.ts to include full datetime with timezone
+fix(ingestion): fixed error causing trade timestamp parsing failure
+docs(readme): add workflow examples for scenario creation
+refactor(engine): simplify exit evaluator logic
+```
+
+---
+
 ## 💾 Memory System
 
 Future sessions should preserve:

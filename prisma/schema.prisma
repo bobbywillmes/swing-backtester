@@ -34,6 +34,12 @@ enum ExitReason {
   OPEN     // position still open at end of candle data
 }
 
+enum RegimeType {
+  TRENDING_LOW_VOL   // spyAtrPct < 0.008
+  NORMAL             // 0.008 <= spyAtrPct <= 0.015
+  CHOPPY_HIGH_VOL    // spyAtrPct > 0.015
+}
+
 // ─── Security ────────────────────────────────────────────────────────────────
 
 model Security {
@@ -68,6 +74,21 @@ model OhlcCandle {
 
   @@unique([ticker, ts])
   @@index([ticker, ts])
+}
+
+// ─── MarketRegime ────────────────────────────────────────────────────────────
+// One row per trading day, computed from SPY daily OHLC aggregated from 5-min candles.
+
+model MarketRegime {
+  date           DateTime   @id                    // trading day (UTC midnight)
+  spyAtr         Float                             // 14-day Wilder ATR (absolute)
+  spyAtrPct      Float                             // spyAtr / spyClose (normalized %)
+  spyClose       Float                             // SPY daily close
+  spy20dSma      Float?                            // 20-day simple moving average
+  spyAboveSma    Boolean?                          // close > 20dSMA (trend direction)
+  regime         RegimeType                        // TRENDING_LOW_VOL | NORMAL | CHOPPY_HIGH_VOL
+
+  @@index([date])
 }
 
 // ─── ActualOrder ─────────────────────────────────────────────────────────────
@@ -145,6 +166,7 @@ model ExitScenario {
 
   // Fixed target — exit when price hits entryPrice * (1 + targetPct)
   targetPct Float?              // e.g. 0.01
+  targetIsHardExit Boolean @default(true)  // true = exit at target; false = target unlocks trail
 
   // Hard stop — exit when low hits entryPrice * (1 + stopPct)
   stopPct   Float?              // e.g. -0.015
@@ -232,6 +254,10 @@ model BacktestTrade {
   runningHighPrice  Float?    // peak price reached during position
   runningHighPct    Float?    // max unrealized gain % reached
   trailActivatedAt  DateTime? // when trailing stop first became active
+
+  // Market regime at entry
+  regimeAtEntry     RegimeType? // TRENDING_LOW_VOL | NORMAL | CHOPPY_HIGH_VOL at entry date
+  spyAtrPctAtEntry  Float?      // raw SPY ATR% for continuous analysis
 
   run         BacktestRun  @relation(fields: [runId],          references: [id])
   actualTrade ActualTrade  @relation(fields: [actualTradeId],  references: [id])
