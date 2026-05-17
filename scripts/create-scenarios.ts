@@ -1,5 +1,4 @@
 import prisma from "../src/db/prisma.js";
-import { createExitScenario } from "../src/services/scenario.service.js";
 
 async function main() {
   console.log("\nCreating default exit scenarios...\n");
@@ -43,11 +42,22 @@ async function main() {
 
   try {
     for (const scenario of scenarios) {
-      const created = await createExitScenario(scenario);
-      console.log(`✓ ${created.name} (ID: ${created.id})`);
+      const result = await prisma.exitScenario.upsert({
+        where: { name: scenario.name },
+        update: {
+          description: scenario.description,
+          targetPct: scenario.targetPct ?? null,
+          stopPct: scenario.stopPct ?? null,
+          trailingStopPct: scenario.trailingStopPct ?? null,
+          trailActivateAfterPct: scenario.trailActivateAfterPct ?? null,
+          maxHoldBars: scenario.maxHoldBars ?? null,
+        },
+        create: scenario,
+      });
+      console.log(`✓ ${result.name} (ID: ${result.id})`);
     }
 
-    console.log("\n✓ Scenarios created\n");
+    console.log("\n✓ Scenarios ready\n");
   } catch (error) {
     console.error("\n✗ Failed to create scenarios:");
     if (error instanceof Error) {
