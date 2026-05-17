@@ -21,8 +21,9 @@
 **Start here in order**:
 1. **README.md** — Quick start, typical workflow, all CLI commands
 2. **docs/PROJECT_SUMMARY_v1.md** — What was built in v1, real results, deliverables
-3. **ARCHITECTURE.md** — System design, build order, database schema, engine logic
-4. **ANALYSIS_WORKFLOW.md** — End-to-end analysis guide with examples
+3. **docs/PROJECT_SUMMARY_v2.md** — The starting point for v2 (goals, plans, data models)
+4. **ARCHITECTURE.md** — System design, build order, database schema, engine logic
+5. **ANALYSIS_WORKFLOW.md** — End-to-end analysis guide with examples
 
 **GitHub**: https://github.com/bobbywillmes/swing-backtester
 
@@ -145,13 +146,13 @@ npm run export-results                 # Or with --runId 5
 
 ## 🔄 Version Management
 
-### Current Version: v1 (Complete)
+### v1 (Complete)
 - **Location**: `docs/PROJECT_SUMMARY_v1.md` (frozen)
 - **Phases**: 1-6 complete (Foundation → Export & Cleanup)
 - **Status**: Production-ready, tested on 162 real trades
 
-### For v2 (When Started)
-1. Create `docs/PROJECT_SUMMARY_v2.md` (living document)
+### v2 (In progress)
+1. Create `docs/PROJECT_SUMMARY_v2.md` (living document) ✅
 2. Update this CLAUDE.md with new conventions/patterns
 3. Update README.md with new features
 4. Keep version summary updated throughout v2
