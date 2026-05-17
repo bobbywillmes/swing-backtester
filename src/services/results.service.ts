@@ -63,6 +63,16 @@ export async function getRunTrades(runId: number, scenarioId: number) {
           entryTs: true,
           actualExitPrice: true,
           actualPnlPct: true,
+          orders: {
+            select: {
+              etradeOrderId: true,
+            },
+          },
+        },
+      },
+      scenario: {
+        select: {
+          name: true,
         },
       },
     },
@@ -91,4 +101,76 @@ export async function getAllRuns() {
       },
     },
   });
+}
+
+export async function getMostRecentRun() {
+  const run = await prisma.backtestRun.findFirst({
+    orderBy: { createdAt: "desc" },
+  });
+  return run?.id;
+}
+
+export async function getRunAllTrades(runId: number) {
+  const trades = await prisma.backtestTrade.findMany({
+    where: {
+      runId,
+    },
+    include: {
+      actualTrade: {
+        select: {
+          id: true,
+          ticker: true,
+          entryPrice: true,
+          entryTs: true,
+          actualExitPrice: true,
+          actualPnlPct: true,
+        },
+      },
+      scenario: {
+        select: {
+          name: true,
+        },
+      },
+    },
+    orderBy: {
+      actualTrade: {
+        entryTs: "asc",
+      },
+    },
+  });
+
+  // Fetch order IDs separately to avoid relationship duplication
+  const actualTradeIds = [...new Set(trades.map((t) => t.actualTrade.id))];
+  const orderMap = new Map<number, string>();
+
+  if (actualTradeIds.length > 0) {
+    const orders = await prisma.actualOrder.findMany({
+      where: {
+        tradeId: { in: actualTradeIds },
+      },
+      select: {
+        tradeId: true,
+        etradeOrderId: true,
+      },
+    });
+
+    for (const order of orders) {
+      if (order.tradeId && !orderMap.has(order.tradeId)) {
+        orderMap.set(order.tradeId, String(order.etradeOrderId || "N/A"));
+      }
+    }
+  }
+
+  // Attach order IDs to trades
+  return trades.map((trade) => ({
+    ...trade,
+    actualTrade: {
+      ...trade.actualTrade,
+      orders: [
+        {
+          etradeOrderId: orderMap.get(trade.actualTrade.id) || "N/A",
+        },
+      ],
+    },
+  }));
 }

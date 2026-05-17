@@ -12,7 +12,9 @@
     "import-trades": "tsx scripts/import-trades.ts",
     "run-backtest": "tsx scripts/run-backtest.ts",
     "print-results": "tsx scripts/print-results.ts",
-    "list-runs": "tsx scripts/list-runs.ts"
+    "export-results": "tsx scripts/export-results.ts",
+    "list-runs": "tsx scripts/list-runs.ts",
+    "cleanup-trades": "tsx scripts/cleanup-trades.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.10.2",
