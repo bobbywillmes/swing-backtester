@@ -38,6 +38,29 @@ Uses actual E*TRADE order history and 5-minute OHLC candles from Massive.com to 
    npx prisma studio
    ```
 
+## Project Versioning
+
+This project uses **version-based summaries** to track major milestone accomplishments:
+
+- **`docs/PROJECT_SUMMARY_v1.md`** — Frozen snapshot of v1 (Phases 1-6, May 2026)
+  - Complete, immutable reference for what was built
+  - Useful for future sessions to understand initial scope
+  - Like a "chapter" in the project's development
+  
+- **`docs/PROJECT_SUMMARY_v2.md`** — (Future) Living document during v2 development
+  - Updated throughout v2 work
+  - Becomes frozen when v2 is complete
+  - Version created when next major feature set is planned
+
+**For future sessions**: 
+- Start with current **README.md** for quick orientation
+- Reference **docs/PROJECT_SUMMARY_v{current}.md** for what was accomplished this version
+- Check **ARCHITECTURE.md** for system design details
+
+This approach preserves the "chapter" structure while allowing active development within a version.
+
+---
+
 ## Typical Workflow
 
 ### Environment & Data Setup
