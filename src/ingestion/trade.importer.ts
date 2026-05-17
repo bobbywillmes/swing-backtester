@@ -30,19 +30,16 @@ export async function importEtradeCsv(
       try {
         const order = parseEtradeRow(row);
 
-        // Verify security exists
-        const security = await prisma.security.findUnique({
+        // Ensure security exists (create if missing)
+        await prisma.security.upsert({
           where: { symbol: order.ticker },
+          update: {},
+          create: {
+            symbol: order.ticker,
+            name: order.ticker, // Placeholder; user can update later
+            assetType: "STOCK", // Default to STOCK; can be ETF/other
+          },
         });
-
-        if (!security) {
-          errors.push({
-            rowNumber,
-            reason: `Security not found: ${order.ticker}`,
-            data: row,
-          });
-          continue;
-        }
 
         // Insert ActualOrder
         await prisma.actualOrder.create({
