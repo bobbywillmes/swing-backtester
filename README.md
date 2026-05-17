@@ -127,12 +127,15 @@ Initial securities seeded:
 All scripts use `tsx` for direct TypeScript execution:
 
 ```bash
-npm run ingest-ohlc    # Fetch OHLC candles
-npm run import-trades  # Import E*TRADE orders
-npm run run-backtest   # Execute backtest simulation
-npm run print-results  # Display backtest summary
-npm run seed           # Re-seed securities
+npx tsx scripts/import-trades.ts --file ./data/orders.csv   # Import E*TRADE orders
+npx tsx scripts/ingest-ohlc.ts --ticker SPY --from 2026-05-01 --to 2026-05-16  # Fetch OHLC
+npx tsx scripts/create-scenarios.ts                          # Create default exit strategies
+npx tsx scripts/run-backtest.ts --name "My Test"             # Execute backtest
+npx tsx scripts/list-runs.ts                                 # List all backtests
+npx tsx scripts/print-results.ts --runId 1                   # Display results & ranking
 ```
+
+**→ See [ANALYSIS_WORKFLOW.md](ANALYSIS_WORKFLOW.md) for complete end-to-end guide**
 
 ## What This Is NOT (Yet)
 

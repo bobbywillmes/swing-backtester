@@ -39,6 +39,11 @@ Thumbs.db
 coverage/
 .nyc_output/
 
+# Data
+data/*.csv
+data/*.xlsx
+data/*.xls
+
 # Misc
 *.pid
 *.seed
