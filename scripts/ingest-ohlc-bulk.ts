@@ -26,15 +26,17 @@ const TICKERS = [
   // Add more tickers here as needed
 ];
 
+const today = new Date();
 const DATE_FROM = new Date("2024-10-01"); // Adjust to your earliest trade
-const DATE_TO = new Date("2026-12-31"); // Adjust to your latest trade
+const DATE_TO = new Date(today); // Today's date (dynamically updated)
+DATE_TO.setDate(DATE_TO.getDate()-1);
 
 // ═════════════════════════════════════════════════════════════════════════════
 
 async function main() {
   console.log(`\nBulk OHLC Ingestion`);
   console.log("=".repeat(60));
-  console.log(`Date Range: ${DATE_FROM.toISOString().split("T")[0]} to ${DATE_TO.toISOString().split("T")[0]}`);
+  console.log(`Date Range: ${DATE_FROM.toISOString().split("T")[0]} to ${DATE_TO}`);
   console.log(`Tickers: ${TICKERS.length} securities\n`);
 
   const client = createMassiveClient();
