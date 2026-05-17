@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16
+    container_name: swing-backtester-postgres
+    environment:
+      POSTGRES_USER: backtester
+      POSTGRES_PASSWORD: backtesterpass
+      POSTGRES_DB: swing_backtester
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

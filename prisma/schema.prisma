@@ -1,0 +1,284 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum AssetType {
+  ETF
+  STOCK
+}
+
+enum OrderSide {
+  BUY
+  SELL
+}
+
+enum RunStatus {
+  PENDING
+  RUNNING
+  COMPLETE
+  FAILED
+}
+
+enum ExitReason {
+  TARGET   // fixed target % hit
+  STOP     // hard stop % from entry hit
+  TRAIL    // trailing stop hit
+  TIME     // max hold bars exceeded
+  OPEN     // position still open at end of candle data
+}
+
+// ─── Security ────────────────────────────────────────────────────────────────
+
+model Security {
+  symbol    String    @id        // 'SPY', 'AAPL', etc.
+  name      String
+  assetType AssetType
+  active    Boolean   @default(true)
+  notes     String?
+
+  candles      OhlcCandle[]
+  actualTrades ActualTrade[]
+  actualOrders ActualOrder[]
+}
+
+// ─── OhlcCandle ──────────────────────────────────────────────────────────────
+// 5-min bars from Massive.com
+// ~78 bars/day × 252 trading days/yr × 9 tickers ≈ 177k rows/yr
+
+model OhlcCandle {
+  id           Int      @id @default(autoincrement())
+  ticker       String
+  ts           DateTime  // candle open time, stored as UTC (converted from Massive unix ms)
+  open         Float     // 'o'
+  high         Float     // 'h'
+  low          Float     // 'l'
+  close        Float     // 'c'
+  volume       BigInt    // 'v'
+  vwap         Float?    // 'vw'
+  transactions Int?      // 'n'
+
+  security Security @relation(fields: [ticker], references: [symbol])
+
+  @@unique([ticker, ts])
+  @@index([ticker, ts])
+}
+
+// ─── ActualOrder ─────────────────────────────────────────────────────────────
+// One raw row from E*TRADE CSV. Buys and sells imported separately,
+// then paired into ActualTrade by trade.pairer.ts
+
+model ActualOrder {
+  id            Int       @id @default(autoincrement())
+  importedAt    DateTime  @default(now())
+  rawRow        Json      // preserve original CSV row for debugging
+
+  etradeOrderId Int?      // 'Order' column (e.g. 1577)
+  ticker        String
+  side          OrderSide // BUY | SELL
+  executedAt    DateTime
+  quantity      Float
+  priceExecuted Float     // 'Price executed' (stripped of † and parsed)
+  priceType     String    // 'Limit' | 'Mkt' | 'T-Stop %'
+  term          String?   // 'GT 60' | 'Day'
+  limitPrice    Float?    // 'Price' column — null when 'Mkt'
+  commission    Float?    // not in E*TRADE order export; left for future use
+
+  // Set after pairing step
+  tradeId Int?
+  trade   ActualTrade? @relation(fields: [tradeId], references: [id])
+
+  security Security @relation(fields: [ticker], references: [symbol])
+
+  @@index([ticker, executedAt])
+  @@index([etradeOrderId])
+}
+
+// ─── ActualTrade ─────────────────────────────────────────────────────────────
+// A paired entry + exit from real trading history.
+// One trade = one buy order + zero or one sell order (null if still open).
+
+model ActualTrade {
+  id     Int    @id @default(autoincrement())
+  ticker String
+
+  // Entry
+  entryTs        DateTime
+  entryPrice     Float
+  shares         Float
+  capitalDeployed Float   // entryPrice × shares
+
+  // Actual exit (null = position never sold / still open)
+  actualExitTs     DateTime?
+  actualExitPrice  Float?
+  actualExitReason String?   // 'limit_sell' | 'market_sell' | 'trailing_stop' | 'open'
+  actualPnlPct     Float?    // (exitPrice - entryPrice) / entryPrice
+  actualPnlDollar  Float?    // (exitPrice - entryPrice) × shares
+
+  // Duration
+  actualBarsHeld Int?         // 5-min candle bars from entry to exit
+
+  importedAt DateTime @default(now())
+  notes      String?
+
+  security      Security      @relation(fields: [ticker], references: [symbol])
+  orders        ActualOrder[]
+  backtestTrades BacktestTrade[]
+
+  @@index([ticker, entryTs])
+}
+
+// ─── ExitScenario ────────────────────────────────────────────────────────────
+// One parameterized exit strategy to test.
+// All pct fields are signed decimals: 0.01 = +1%, -0.005 = -0.5%
+
+model ExitScenario {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique   // e.g. 'Trail 0.5% from high, activate at +0.5%'
+  description String?
+
+  // Fixed target — exit when price hits entryPrice * (1 + targetPct)
+  targetPct Float?              // e.g. 0.01
+
+  // Hard stop — exit when low hits entryPrice * (1 + stopPct)
+  stopPct   Float?              // e.g. -0.015
+
+  // Trailing stop — exit when low falls below runningHigh * (1 + trailingStopPct)
+  trailingStopPct       Float?  // e.g. -0.005
+  trailActivateAfterPct Float?  // don't start trailing until gain >= this; e.g. 0.005
+
+  // Time exit — exit after this many 5-min bars regardless of price
+  maxHoldBars Int?              // 78 bars = 1 trading day
+
+  // Scope — null means applies to all
+  assetTypeScope AssetType?
+
+  // Same-bar priority (hardcoded in engine): STOP > TRAIL > TARGET > TIME
+
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  backtestTrades BacktestTrade[]
+  runScenarios   BacktestRunScenario[]
+}
+
+// ─── BacktestRun ─────────────────────────────────────────────────────────────
+// One execution of the engine against a set of trades and scenarios.
+
+model BacktestRun {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  status      RunStatus @default(PENDING)
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  // Optional filters applied at run time
+  filterTickers  String[]   // empty array = all tickers
+  filterDateFrom DateTime?
+  filterDateTo   DateTime?
+
+  scenarios  BacktestRunScenario[]
+  trades     BacktestTrade[]
+  summaries  BacktestSummary[]
+}
+
+// ─── BacktestRunScenario ─────────────────────────────────────────────────────
+// Join: which scenarios are included in a run
+
+model BacktestRunScenario {
+  runId      Int
+  scenarioId Int
+
+  run      BacktestRun  @relation(fields: [runId],      references: [id])
+  scenario ExitScenario @relation(fields: [scenarioId], references: [id])
+
+  @@id([runId, scenarioId])
+}
+
+// ─── BacktestTrade ───────────────────────────────────────────────────────────
+// One simulated result: ActualTrade × ExitScenario.
+// This is the atomic output of the engine.
+
+model BacktestTrade {
+  id            Int @id @default(autoincrement())
+  runId         Int
+  actualTradeId Int
+  scenarioId    Int
+
+  // Simulated exit
+  exitTs    DateTime?
+  exitPrice Float?
+  exitReason ExitReason?
+
+  // P&L
+  pnlPct    Float?   // (exitPrice - entryPrice) / entryPrice
+  pnlDollar Float?   // (exitPrice - entryPrice) × shares
+
+  // Delta vs what actually happened (positive = sim was better)
+  pnlVsActualPct    Float?
+  pnlVsActualDollar Float?
+
+  // Time
+  barsInTrade Int?
+
+  // Trail detail — useful for tuning
+  runningHighPrice  Float?    // peak price reached during position
+  runningHighPct    Float?    // max unrealized gain % reached
+  trailActivatedAt  DateTime? // when trailing stop first became active
+
+  run         BacktestRun  @relation(fields: [runId],          references: [id])
+  actualTrade ActualTrade  @relation(fields: [actualTradeId],  references: [id])
+  scenario    ExitScenario @relation(fields: [scenarioId],     references: [id])
+
+  @@unique([runId, actualTradeId, scenarioId])
+  @@index([runId, scenarioId])
+  @@index([actualTradeId])
+}
+
+// ─── BacktestSummary ─────────────────────────────────────────────────────────
+// Aggregated metrics per scenario per run. Computed after engine finishes.
+
+model BacktestSummary {
+  id         Int @id @default(autoincrement())
+  runId      Int
+  scenarioId Int
+
+  // Counts
+  totalTrades Int
+  wins        Int    // pnlPct > 0
+  losses      Int
+  openTrades  Int    // exitReason = OPEN (no exit found in candle data)
+  winRate     Float  // wins / (totalTrades - openTrades)
+
+  // P&L
+  totalPnlPct  Float
+  avgPnlPct    Float
+  avgWinPct    Float
+  avgLossPct   Float
+  bestTradePct Float
+  worstTradePct Float
+
+  // vs actual
+  avgPnlVsActualPct    Float   // avg improvement over what actually happened
+  totalPnlVsActualDollar Float // total dollar improvement across all trades
+  tradesImproved       Int     // trades where sim beat actual
+  tradesWorse          Int
+
+  // Time efficiency
+  avgBarsInTrade Float
+  avgDaysInTrade Float         // avgBarsInTrade / 78
+
+  // Trail-specific
+  avgRunningHighPct Float?     // avg peak unrealized gain before exit
+
+  run BacktestRun @relation(fields: [runId], references: [id])
+
+  @@unique([runId, scenarioId])
+}

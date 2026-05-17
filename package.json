@@ -1,0 +1,28 @@
+{
+  "name": "swing-backtester",
+  "version": "0.1.0",
+  "description": "Swing trade backtester with trailing stop analysis",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch",
+    "build": "tsc",
+    "seed": "tsx prisma/seed.ts",
+    "ingest-ohlc": "tsx scripts/ingest-ohlc.ts",
+    "import-trades": "tsx scripts/import-trades.ts",
+    "run-backtest": "tsx scripts/run-backtest.ts",
+    "print-results": "tsx scripts/print-results.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.10.2",
+    "axios": "^1.6.2",
+    "papaparse": "^5.4.1",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "@types/papaparse": "^5.3.14",
+    "prisma": "^5.10.2",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}
