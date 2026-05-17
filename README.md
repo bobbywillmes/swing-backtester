@@ -38,6 +38,65 @@ Uses actual E*TRADE order history and 5-minute OHLC candles from Massive.com to 
    npx prisma studio
    ```
 
+## Typical Workflow
+
+### Environment & Data Setup
+
+1. **Ingest OHLC candles** — Fetch 5-minute bars from Massive.com for your tickers:
+   ```bash
+   npm run ingest-ohlc-bulk
+   ```
+   (Edit `scripts/ingest-ohlc-bulk.ts` to customize tickers and date range)
+
+2. **Create exit scenarios** — Generate the default 6 parameterized exit strategies:
+   ```bash
+   npx tsx scripts/create-scenarios.ts
+   ```
+   (Scenarios include fixed targets, hard stops, trailing stops, and time-based exits)
+
+3. **Import trades** — Load your E*TRADE CSV export:
+   ```bash
+   npm run import-trades -- --file data/orders.csv
+   ```
+   (Trades are auto-paired by ticker and date; securities are created if missing)
+
+### Running Backtest & Viewing Results
+
+1. **Run the backtest** — Simulate all exit scenarios against your actual trades:
+   ```bash
+   npm run run-backtest -- --name "Full Portfolio Analysis" --description "All 162 trades"
+   ```
+   (Add `--ticker SPY` or `--dateFrom 2026-01-01` to filter)
+
+2. **Export results** — Generate CSVs for analysis in Excel:
+   ```bash
+   npm run export-results
+   ```
+   (Exports rankings, scenario-trades detail, and run metadata to `exports/`)
+   
+   Or specify a particular run:
+   ```bash
+   npm run export-results -- --runId 5
+   ```
+
+3. **List previous runs** — See all backtests:
+   ```bash
+   npm run list-runs
+   ```
+
+4. **Print console results** — View metrics and rankings inline:
+   ```bash
+   npm run print-results -- --runId 5
+   ```
+
+### Cleaning Up
+
+If you need to reset trade data and re-import:
+```bash
+npm run cleanup-trades
+```
+This removes all trades, orders, and backtest runs (but preserves OHLC candles and scenarios).
+
 ## Project Structure
 
 ```
@@ -73,10 +132,15 @@ swing-backtester/
       date.utils.ts           # Market day helpers
       csv.utils.ts            # CSV parsing helpers
   scripts/
-    ingest-ohlc.ts      # CLI: fetch OHLC candles
-    import-trades.ts    # CLI: load E*TRADE CSV
-    run-backtest.ts     # CLI: execute backtest
-    print-results.ts    # CLI: display results
+    ingest-ohlc.ts           # CLI: fetch OHLC candles for single ticker
+    ingest-ohlc-bulk.ts      # CLI: fetch OHLC for multiple tickers
+    import-trades.ts         # CLI: load E*TRADE CSV
+    create-scenarios.ts      # CLI: seed default exit scenarios
+    run-backtest.ts          # CLI: execute backtest
+    print-results.ts         # CLI: display results in console
+    export-results.ts        # CLI: export CSVs for Excel analysis
+    list-runs.ts             # CLI: list all backtest runs
+    cleanup-trades.ts        # CLI: reset trade data
   docker-compose.yml
   .env.example
   ARCHITECTURE.md       # Complete spec & build order
@@ -86,24 +150,27 @@ swing-backtester/
   .gitignore
 ```
 
-## Build Phases
+## Build Status
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for complete specifications and build order.
+All core phases complete. See [ARCHITECTURE.md](ARCHITECTURE.md) for full specifications.
 
 ### Phase 1 ✓ Foundation
 - Docker setup, Prisma schema, singleton client, env loader, seed data
 
-### Phase 2 OHLC Ingestion
-- Massive.com API client, candle fetching & upserting, CLI script
+### Phase 2 ✓ OHLC Ingestion
+- Massive.com API client, candle fetching & upserting, bulk import
 
-### Phase 3 Trade Import
-- E*TRADE CSV parsing, order import, buy/sell pairing
+### Phase 3 ✓ Trade Import
+- E*TRADE CSV parsing, order import, buy/sell pairing, auto-create securities
 
-### Phase 4 Engine
-- Trailing stop state machine, exit evaluation, backtest orchestration
+### Phase 4 ✓ Engine
+- Trailing stop state machine, priority-based exit evaluation, backtest orchestration
 
-### Phase 5 Results
-- Metrics aggregation, scenario ranking, result display
+### Phase 5 ✓ Results Analysis
+- Metrics aggregation, scenario ranking, composite scoring
+
+### Phase 6 ✓ Export & Cleanup
+- CSV exports with Order IDs and Scenario names, optional runId parameter, data cleanup tools
 
 ## Database
 
@@ -122,32 +189,49 @@ Initial securities seeded:
 - **Percentages as signed decimals** — `0.01` = +1%, `-0.005` = -0.5%
 - **UTC timestamps** — all times stored and converted to UTC
 
-## Scripts
+## Commands
 
-All scripts use `tsx` for direct TypeScript execution:
+All scripts are available via npm run:
 
 ```bash
-npx tsx scripts/import-trades.ts --file ./data/orders.csv   # Import E*TRADE orders
-npx tsx scripts/ingest-ohlc.ts --ticker SPY --from 2026-05-01 --to 2026-05-16  # Fetch OHLC
-npx tsx scripts/create-scenarios.ts                          # Create default exit strategies
-npx tsx scripts/run-backtest.ts --name "My Test"             # Execute backtest
-npx tsx scripts/list-runs.ts                                 # List all backtests
-npx tsx scripts/print-results.ts --runId 1                   # Display results & ranking
+# Data Setup
+npm run ingest-ohlc-bulk                                         # Fetch bulk OHLC (edit config in script)
+npm run ingest-ohlc -- --ticker SPY --from 2026-01-01 --to 2026-05-16  # Fetch single ticker
+npm run import-trades -- --file data/orders.csv                  # Import E*TRADE CSV
+npx tsx scripts/create-scenarios.ts                              # Create default scenarios
+
+# Backtest & Results
+npm run run-backtest -- --name "Test" --description "desc"      # Run backtest
+npm run export-results                                           # Export CSVs (latest run)
+npm run export-results -- --runId 5                              # Export specific run
+npm run list-runs                                                # List all runs
+npm run print-results -- --runId 5                               # View results in console
+npm run cleanup-trades                                           # Reset trade data
 ```
 
 **→ See [ANALYSIS_WORKFLOW.md](ANALYSIS_WORKFLOW.md) for complete end-to-end guide**
 
-## What This Is NOT (Yet)
+## Scope
 
-- Not a live trading system
-- Not connected to a live broker
-- No web API / UI (CLI only for v0)
-- No multi-add / campaign tracking (pairs first BUY → first SELL only)
-- No intraday entry signal generation
+**In Scope:**
+- Historical swing trade analysis with trailing stop simulation
+- Bar-by-bar backtest engine with priority-based exit logic
+- Scenario ranking and comparative metrics
+- CSV export for Excel analysis
 
-## Next Steps
+**Out of Scope (v1):**
+- Live trading system
+- Live broker connection
+- Web UI (CLI + Excel exports)
+- Multi-add / pyramid trading
+- Intraday entry signal generation
+- Options or derivatives
 
-1. Implement Massive.com API client & OHLC ingestion
-2. Build E*TRADE CSV importer & trade pairer
-3. Develop backtest engine with trailing stop logic
-4. Add metrics calculator & results display
+## Future Enhancements
+
+- Web dashboard for interactive result visualization
+- Real-time backtest progress monitoring
+- Custom exit strategy builder UI
+- Performance attribution (which scenarios beat actual by ticker)
+- Risk metrics (Sharpe, Sortino, drawdown analysis)
+- Batch scenario optimization
