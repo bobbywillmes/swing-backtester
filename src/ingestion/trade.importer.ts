@@ -31,15 +31,20 @@ export async function importEtradeCsv(
         const order = parseEtradeRow(row);
 
         // Ensure security exists (create if missing)
-        await prisma.security.upsert({
+        const existingSecurity = await prisma.security.findUnique({
           where: { symbol: order.ticker },
-          update: {},
-          create: {
-            symbol: order.ticker,
-            name: order.ticker, // Placeholder; user can update later
-            assetType: "STOCK", // Default to STOCK; can be ETF/other
-          },
         });
+
+        if (!existingSecurity) {
+          await prisma.security.create({
+            data: {
+              symbol: order.ticker,
+              name: order.ticker, // Placeholder; user can update later
+              assetType: "STOCK", // Default to STOCK; can be ETF/other
+            },
+          });
+          console.log(`  ℹ Auto-created security: ${order.ticker}`);
+        }
 
         // Insert ActualOrder
         await prisma.actualOrder.create({

@@ -8,9 +8,11 @@
     "build": "tsc",
     "seed": "tsx prisma/seed.ts",
     "ingest-ohlc": "tsx scripts/ingest-ohlc.ts",
+    "ingest-ohlc-bulk": "tsx scripts/ingest-ohlc-bulk.ts",
     "import-trades": "tsx scripts/import-trades.ts",
     "run-backtest": "tsx scripts/run-backtest.ts",
-    "print-results": "tsx scripts/print-results.ts"
+    "print-results": "tsx scripts/print-results.ts",
+    "list-runs": "tsx scripts/list-runs.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.10.2",
