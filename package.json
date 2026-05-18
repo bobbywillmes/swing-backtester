@@ -10,6 +10,7 @@
     "ingest-ohlc": "tsx scripts/ingest-ohlc.ts",
     "ingest-ohlc-bulk": "tsx scripts/ingest-ohlc-bulk.ts",
     "import-trades": "tsx scripts/import-trades.ts",
+    "compute-regimes": "tsx scripts/compute-regimes.ts",
     "run-backtest": "tsx scripts/run-backtest.ts",
     "print-results": "tsx scripts/print-results.ts",
     "export-results": "tsx scripts/export-results.ts",
