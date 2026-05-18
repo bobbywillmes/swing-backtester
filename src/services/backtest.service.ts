@@ -12,6 +12,7 @@ export async function createExitScenario(
       name: input.name,
       description: input.description,
       targetPct: input.targetPct ?? null,
+      targetIsHardExit: input.targetIsHardExit ?? true,
       stopPct: input.stopPct ?? null,
       trailingStopPct: input.trailingStopPct ?? null,
       trailActivateAfterPct: input.trailActivateAfterPct ?? null,
@@ -89,6 +90,7 @@ export async function runBacktest(
           id: runScenario.scenario.id,
           name: runScenario.scenario.name,
           targetPct: runScenario.scenario.targetPct,
+          targetIsHardExit: runScenario.scenario.targetIsHardExit,
           stopPct: runScenario.scenario.stopPct,
           trailingStopPct: runScenario.scenario.trailingStopPct,
           trailActivateAfterPct: runScenario.scenario.trailActivateAfterPct,
@@ -107,6 +109,14 @@ export async function runBacktest(
         };
 
         const result = engine.runTrade(tradeConfig, ohlcBars, scenario);
+
+        // Get market regime at entry date
+        const entryDateMidnight = new Date(trade.entryTs);
+        entryDateMidnight.setUTCHours(0, 0, 0, 0);
+        const regime = await prisma.marketRegime.findUnique({
+          where: { date: entryDateMidnight },
+          select: { regime: true, spyAtrPct: true },
+        });
 
         // Write BacktestTrade result
         await prisma.backtestTrade.upsert({
@@ -129,6 +139,8 @@ export async function runBacktest(
             runningHighPrice: result.runningHighPrice,
             runningHighPct: result.runningHighPct,
             trailActivatedAt: result.trailActivatedAt,
+            regimeAtEntry: regime?.regime ?? null,
+            spyAtrPctAtEntry: regime?.spyAtrPct ?? null,
           },
           create: {
             runId: backtestRunId,
@@ -145,6 +157,8 @@ export async function runBacktest(
             runningHighPrice: result.runningHighPrice,
             runningHighPct: result.runningHighPct,
             trailActivatedAt: result.trailActivatedAt,
+            regimeAtEntry: regime?.regime ?? null,
+            spyAtrPctAtEntry: regime?.spyAtrPct ?? null,
           },
         });
       }

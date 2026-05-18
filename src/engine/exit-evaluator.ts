@@ -1,4 +1,4 @@
-import { OhlcBar, ExitResult, ExitReason } from "../types/engine.types.js";
+import { OhlcBar, ExitResult } from "../types/engine.types.js";
 import {
   initializeTrailingStopState,
   updateTrailingStopState,
@@ -8,6 +8,7 @@ export interface EvaluationConfig {
   entryPrice: number;
   entryTs: Date;
   targetPct: number | null;
+  targetIsHardExit: boolean | null;
   stopPct: number | null;
   trailingStopPct: number | null;
   trailActivateAfterPct: number | null;
@@ -70,18 +71,33 @@ export function evaluateBarForExit(
     };
   }
 
-  // 3. Target
+  // 3. Target (behavior depends on targetIsHardExit)
   if (targetPrice !== null && bar.high >= targetPrice) {
-    return {
-      exit: {
-        exitedAtBar: barsInTrade,
-        exitTs: bar.ts,
-        exitPrice: targetPrice,
-        exitReason: "TARGET",
-        barsInTrade: barsInTrade + 1,
-      },
-      updatedState,
-    };
+    const isHardExit = config.targetIsHardExit !== false; // Default to true if not specified
+
+    if (isHardExit) {
+      // v1 behavior: exit immediately at target
+      return {
+        exit: {
+          exitedAtBar: barsInTrade,
+          exitTs: bar.ts,
+          exitPrice: targetPrice,
+          exitReason: "TARGET",
+          barsInTrade: barsInTrade + 1,
+        },
+        updatedState,
+      };
+    } else {
+      // v2 "target unlocks trail" behavior: set targetUnlocked, don't exit yet
+      const stateWithUnlock = {
+        ...updatedState,
+        targetUnlocked: true,
+      };
+      return {
+        exit: null,
+        updatedState: stateWithUnlock,
+      };
+    }
   }
 
   // 4. Max hold bars (exit at close of the final bar)

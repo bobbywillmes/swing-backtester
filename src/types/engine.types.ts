@@ -21,6 +21,7 @@ export interface TrailingStopState {
   runningHigh: number;
   trailActive: boolean;
   trailFloor: number;
+  targetUnlocked: boolean; // When targetIsHardExit=false, target hit activates trail instead of exiting
 }
 
 export interface BacktestResult {
@@ -43,6 +44,7 @@ export interface ScenarioConfig {
   id: number;
   name: string;
   targetPct: number | null;
+  targetIsHardExit: boolean | null;
   stopPct: number | null;
   trailingStopPct: number | null;
   trailActivateAfterPct: number | null;

@@ -3,7 +3,6 @@ import {
   BacktestResult,
   ScenarioConfig,
   TradeConfig,
-  ExitReason,
 } from "../types/engine.types.js";
 import { evaluateBarForExit } from "./exit-evaluator.js";
 import { initializeTrailingStopState } from "./trailing-stop.tracker.js";
@@ -36,6 +35,7 @@ export class BacktestEngine {
           entryPrice: trade.entryPrice,
           entryTs: trade.entryTs,
           targetPct: scenario.targetPct,
+          targetIsHardExit: scenario.targetIsHardExit,
           stopPct: scenario.stopPct,
           trailingStopPct: scenario.trailingStopPct,
           trailActivateAfterPct: scenario.trailActivateAfterPct,
@@ -139,14 +139,8 @@ export class BacktestEngine {
       runningHighPrice: runningHighPrice ?? trade.entryPrice,
       runningHighPct: runningHighPct ?? 0,
       trailActivatedAt: trailActivatedAt ?? null,
-      pnlVsActualPct:
-        trade.actualPnlPct !== null
-          ? null - trade.actualPnlPct
-          : null,
-      pnlVsActualDollar:
-        trade.actualPnlDollar !== null
-          ? null - trade.actualPnlDollar
-          : null,
+      pnlVsActualPct: null,
+      pnlVsActualDollar: null,
     };
   }
 }

@@ -8,6 +8,7 @@ export function initializeTrailingStopState(
     runningHigh: entryPrice,
     trailActive: false,
     trailFloor: entryPrice, // Will be recalculated on first update if trailingStopPct is set
+    targetUnlocked: false, // Set to true when target is hit in "unlock trail" mode
   };
 }
 
@@ -20,10 +21,10 @@ export function updateTrailingStopState(
   // Update running high
   const newRunningHigh = Math.max(state.runningHigh, barHigh);
 
-  // Check if trailing stop should activate
+  // Check if trailing stop should activate (from price gain OR from target unlock)
   const unrealizedGainPct = (newRunningHigh - state.entryPrice) / state.entryPrice;
   const activateThreshold = trailActivateAfterPct ?? 0;
-  const shouldActivate = unrealizedGainPct >= activateThreshold;
+  const shouldActivate = unrealizedGainPct >= activateThreshold || state.targetUnlocked;
   const newTrailActive = state.trailActive || shouldActivate;
 
   // Recalculate trail floor if trailing stop is configured
@@ -37,6 +38,7 @@ export function updateTrailingStopState(
     runningHigh: newRunningHigh,
     trailActive: newTrailActive,
     trailFloor: newTrailFloor,
+    targetUnlocked: state.targetUnlocked,
   };
 }
 

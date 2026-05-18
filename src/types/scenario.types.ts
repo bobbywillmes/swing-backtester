@@ -4,6 +4,7 @@ export interface ExitScenarioInput {
   name: string;
   description?: string;
   targetPct?: number;
+  targetIsHardExit?: boolean;
   stopPct?: number;
   trailingStopPct?: number;
   trailActivateAfterPct?: number;
@@ -16,6 +17,7 @@ export interface ExitScenario {
   name: string;
   description?: string;
   targetPct?: number;
+  targetIsHardExit?: boolean;
   stopPct?: number;
   trailingStopPct?: number;
   trailActivateAfterPct?: number;
