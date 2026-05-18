@@ -141,6 +141,12 @@ npm run run-backtest -- --name "Test" --description "..."
 - **Test by**: Running backtest with test data
 - **Verify**: Check `src/engine/exit-evaluator.ts` for priority order
 
+**⚠️ Critical Pattern for "Target Unlocks Trail" Scenarios**:
+- When creating unlock scenarios (targetIsHardExit = false), **always set `trailActivateAfterPct = targetPct`**
+- Bug: If `trailActivateAfterPct` is null, it defaults to 0%, causing trail to activate immediately at entry (before target is hit)
+- Correct: `trailActivateAfterPct: 0.01` for "+1.0% Unlock → Trail X%" ensures trail only activates when target is reached
+- Impact: Skipping this caused unlock scenarios to produce identical results to pure trail scenarios (30-40% score difference after fix)
+
 ### Adding a New Exit Scenario (v2)
 1. Edit `scripts/create-scenarios-v2.ts`
 2. Add to appropriate group (Trail Only / Target Unlock Trail / Fixed Target)
@@ -148,9 +154,20 @@ npm run run-backtest -- --name "Test" --description "..."
 4. Set `targetIsHardExit` appropriately:
    - `true` (default) = exit immediately at target price (Group 3)
    - `false` = target activates trail without exiting (Group 2)
+   - **For Group 2 only**: Set `trailActivateAfterPct = targetPct` (critical!)
 5. Run: `npm run create-scenarios-v2`
 6. Run backtest to validate: `npm run run-backtest -- --name "Test"`
 7. Export and verify in Excel: `npm run export-results`
+
+### Validating Scenario Integrity
+Use these scripts to detect and fix duplicate scenarios:
+```bash
+npm run find-duplicate-scenarios    # Identify scenarios with identical parameters
+npm run remove-duplicate-scenarios  # Deactivate any duplicates found
+```
+- **When to run**: After creating or migrating scenarios, or before publishing results
+- **What it detects**: Scenarios with same targetPct, stopPct, trailingStopPct, trailActivateAfterPct, maxHoldBars, and assetTypeScope
+- **Recommendation**: Always verify new backtest runs in Excel pivot tables to ensure no duplicate aggregate results across scenario names
 
 ---
 
@@ -165,6 +182,7 @@ npm run run-backtest -- --name "Test" --description "..."
 - ❌ Skip TypeScript strict mode
 - ❌ Hardcode magic numbers (use named constants)
 - ❌ Forget to run migrations after schema changes
+- ❌ Create "Target Unlocks Trail" scenarios without setting `trailActivateAfterPct = targetPct` (causes 30-40% score difference!)
 
 ---
 

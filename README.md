@@ -228,6 +228,49 @@ All phases complete (v1 & v2). See [ARCHITECTURE.md](ARCHITECTURE.md) for full s
 - Flat CSV with 30+ context columns (trade identity, scenario config, regime context, running high, vs actual)
 - Excel pivot-ready format
 
+## Data Integrity & Validation (Post-v2)
+
+During v2 validation, several critical data issues were discovered and fixed:
+
+### Issues Found & Fixed
+
+1. **UTF-8 Encoding Corruption**
+   - 8 scenarios had corrupted Unicode characters (e.g., "â†'" instead of "→")
+   - Root cause: Database encoding during initial scenario creation
+   - Fixed: Cleaned scenarios and updated all creation scripts to use ASCII "->" notation
+   - Result: All scenario names now display correctly
+
+2. **"Target Unlocks Trail" Feature Bug**
+   - Unlock scenarios (targetIsHardExit = false) had incorrect default activation thresholds
+   - Bug: `trailActivateAfterPct` defaulting to null (0%), causing trails to activate immediately at entry instead of waiting for target
+   - Impact: Unlock scenarios produced identical results to pure trail scenarios, defeating the feature
+   - Fixed: Set `trailActivateAfterPct = targetPct` for all 8 unlock scenarios in `create-scenarios-v2.ts`
+   - Result: Unlock scenarios now rank 30-40% higher (e.g., "+2.0% Unlock → Trail 1.0%" score improved from 22.8 to 74.0)
+
+3. **Duplicate Scenarios**
+   - v1-migrated scenarios with "(activate at +X%)" naming had identical parameters and results to v2 "Unlock" variants
+   - Found 4 duplicate pairs:
+     - "ETF: Trail 0.5% (activate at +0.5%)" vs "+0.5% Unlock → Trail 0.5%"
+     - "ETF: Trail 1% (activate at +1%)" vs "+1.0% Unlock → Trail 0.75%"
+     - Similar stock variants
+   - Fixed: Deactivated 4 v1-migrated scenarios, kept v2-style names for consistency
+   - Result: 26 unique, non-redundant scenarios
+
+### Validation Baseline
+
+- **Run-23** is the validated baseline after all fixes
+- 26 unique scenarios with differentiated results
+- All 162 trades analyzed with clean, duplicate-free data
+- Excel pivot tables confirm no aggregate duplicates across scenarios
+- Use run-23 results as the authoritative v2 analysis baseline
+
+### Detection & Cleanup Scripts
+
+New utility scripts added for ongoing validation:
+- `scripts/find-duplicate-scenarios.ts` — Identifies scenarios by parameter fingerprint
+- `scripts/remove-duplicate-scenarios.ts` — Deactivates identified duplicates
+- Added to `npm` scripts and documented in CLAUDE.md
+
 ## Database
 
 **PostgreSQL 16** running in Docker on port 5433.
@@ -268,6 +311,10 @@ npm run export-results                                           # Export CSVs (
 npm run export-results -- --runId 5                              # Export specific run
 npm run list-runs                                                # List all runs
 npm run print-results -- --runId 5                               # View results in console
+
+# Data Validation
+npm run find-duplicate-scenarios                                 # Detect scenarios with identical parameters
+npm run remove-duplicate-scenarios                               # Deactivate duplicate scenarios
 
 # Maintenance
 npm run cleanup-trades                                           # Reset trade data
