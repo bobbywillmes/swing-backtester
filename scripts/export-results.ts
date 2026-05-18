@@ -230,7 +230,7 @@ async function main() {
 
         const orderId = trade.actualTrade.orders[0]?.etradeOrderId || "N/A";
         const ticker = trade.actualTrade.ticker;
-        const assetType = trade.scenario.assetTypeScope || "UNKNOWN";
+        const assetType = trade.actualTrade.security?.assetType || "UNKNOWN";
         const entryPrice = trade.actualTrade.entryPrice.toFixed(2);
         const shares = trade.actualTrade.shares.toFixed(0);
         const capitalDeployed = (

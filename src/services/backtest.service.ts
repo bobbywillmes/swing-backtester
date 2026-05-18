@@ -66,6 +66,11 @@ export async function runBacktest(
 
     const trades = await prisma.actualTrade.findMany({
       where: tradeWhere,
+      include: {
+        security: {
+          select: { assetType: true },
+        },
+      },
     });
 
     // Run backtest for each trade and scenario
@@ -86,6 +91,14 @@ export async function runBacktest(
       }));
 
       for (const runScenario of run.scenarios) {
+        // Skip scenario if assetTypeScope doesn't match trade's asset type
+        if (
+          runScenario.scenario.assetTypeScope &&
+          runScenario.scenario.assetTypeScope !== trade.security.assetType
+        ) {
+          continue;
+        }
+
         const scenario: ScenarioConfig = {
           id: runScenario.scenario.id,
           name: runScenario.scenario.name,
