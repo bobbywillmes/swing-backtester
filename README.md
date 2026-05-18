@@ -43,14 +43,15 @@ Uses actual E*TRADE order history and 5-minute OHLC candles from Massive.com to 
 This project uses **version-based summaries** to track major milestone accomplishments:
 
 - **`docs/PROJECT_SUMMARY_v1.md`** — Frozen snapshot of v1 (Phases 1-6, May 2026)
-  - Complete, immutable reference for what was built
-  - Useful for future sessions to understand initial scope
-  - Like a "chapter" in the project's development
+  - 162 actual trades analyzed with 6 default exit scenarios
+  - Found: Trail 1% strategy beat actual exits by **26.15% avg**
+  - Complete, immutable reference for initial scope
   
-- **`docs/PROJECT_SUMMARY_v2.md`** — (Future) Living document during v2 development
-  - Updated throughout v2 work
-  - Becomes frozen when v2 is complete
-  - Version created when next major feature set is planned
+- **`docs/PROJECT_SUMMARY_v2.md`** — Frozen snapshot of v2 (Phases 7-11, May 18 2026)
+  - 20 asset-type-scoped exit scenarios (ETF vs Stock variants)
+  - Market regime classification (SPY ATR-based: Trending/Normal/Choppy)
+  - Comprehensive flat CSV export with 30+ context columns
+  - Ready for Excel pivot analysis by asset type and market regime
 
 **For future sessions**: 
 - Start with current **README.md** for quick orientation
@@ -71,17 +72,26 @@ This approach preserves the "chapter" structure while allowing active developmen
    ```
    (Edit `scripts/ingest-ohlc-bulk.ts` to customize tickers and date range)
 
-2. **Create exit scenarios** — Generate the default 6 parameterized exit strategies:
-   ```bash
-   npx tsx scripts/create-scenarios.ts
-   ```
-   (Scenarios include fixed targets, hard stops, trailing stops, and time-based exits)
-
-3. **Import trades** — Load your E*TRADE CSV export:
+2. **Import trades** — Load your E*TRADE CSV export:
    ```bash
    npm run import-trades -- --file data/orders.csv
    ```
    (Trades are auto-paired by ticker and date; securities are created if missing)
+
+3. **Create exit scenarios** — v1 default scenarios or v2 expanded matrix:
+   ```bash
+   # v1: Basic 6 scenarios
+   npx tsx scripts/create-scenarios.ts
+   
+   # v2: 20 asset-type-scoped scenarios (recommended)
+   npm run create-scenarios-v2
+   ```
+
+4. **Compute market regimes** — (v2 only) Classify daily SPY volatility regimes:
+   ```bash
+   npm run compute-regimes
+   ```
+   (Creates 433 regime records based on 14-day ATR, required for regime-aware analysis)
 
 ### Running Backtest & Viewing Results
 
@@ -175,7 +185,9 @@ swing-backtester/
 
 ## Build Status
 
-All core phases complete. See [ARCHITECTURE.md](ARCHITECTURE.md) for full specifications.
+All phases complete (v1 & v2). See [ARCHITECTURE.md](ARCHITECTURE.md) for full specifications.
+
+### v1 (Complete)
 
 ### Phase 1 ✓ Foundation
 - Docker setup, Prisma schema, singleton client, env loader, seed data
@@ -194,6 +206,27 @@ All core phases complete. See [ARCHITECTURE.md](ARCHITECTURE.md) for full specif
 
 ### Phase 6 ✓ Export & Cleanup
 - CSV exports with Order IDs and Scenario names, optional runId parameter, data cleanup tools
+
+### v2 (Complete)
+
+### Phase 7 ✓ Schema Migration
+- Added `targetIsHardExit` to ExitScenario, new RegimeType enum, MarketRegime model
+
+### Phase 8 ✓ Market Regimes
+- SPY ATR-based daily regime classification (Trending Low Vol / Normal / Choppy High Vol)
+- 433 regimes computed from 5-min candles (Oct 2024 - May 2026)
+
+### Phase 9 ✓ Engine Enhancement
+- "Target unlocks trail" feature (targetIsHardExit = false → activate trail instead of exit)
+- targetUnlocked state machine field, regime context population
+
+### Phase 10 ✓ Expanded Scenarios
+- 20 v2 scenarios: 8 Trail Only + 8 Target Unlock Trail + 4 Fixed Target
+- Asset-type scoped (separate ETF vs Stock records)
+
+### Phase 11 ✓ Comprehensive Export
+- Flat CSV with 30+ context columns (trade identity, scenario config, regime context, running high, vs actual)
+- Excel pivot-ready format
 
 ## Database
 
@@ -217,11 +250,17 @@ Initial securities seeded:
 All scripts are available via npm run:
 
 ```bash
-# Data Setup
+# Data Setup (v1 & v2)
 npm run ingest-ohlc-bulk                                         # Fetch bulk OHLC (edit config in script)
 npm run ingest-ohlc -- --ticker SPY --from 2026-01-01 --to 2026-05-16  # Fetch single ticker
 npm run import-trades -- --file data/orders.csv                  # Import E*TRADE CSV
-npx tsx scripts/create-scenarios.ts                              # Create default scenarios
+
+# Scenarios
+npx tsx scripts/create-scenarios.ts                              # v1: Create 6 default scenarios
+npm run create-scenarios-v2                                      # v2: Create 20 asset-scoped scenarios
+
+# Market Regimes (v2 only)
+npm run compute-regimes                                          # Compute SPY ATR-based regime classifications
 
 # Backtest & Results
 npm run run-backtest -- --name "Test" --description "desc"      # Run backtest
@@ -229,6 +268,8 @@ npm run export-results                                           # Export CSVs (
 npm run export-results -- --runId 5                              # Export specific run
 npm run list-runs                                                # List all runs
 npm run print-results -- --runId 5                               # View results in console
+
+# Maintenance
 npm run cleanup-trades                                           # Reset trade data
 ```
 
@@ -236,19 +277,23 @@ npm run cleanup-trades                                           # Reset trade d
 
 ## Scope
 
-**In Scope:**
+**In Scope (v1 & v2):**
 - Historical swing trade analysis with trailing stop simulation
 - Bar-by-bar backtest engine with priority-based exit logic
+- Asset-type-scoped exit scenarios (ETF vs Stock parameters)
+- Market regime classification (SPY ATR-based volatility tagging)
 - Scenario ranking and comparative metrics
-- CSV export for Excel analysis
+- Comprehensive flat CSV export for Excel analysis
+- Regime-aware result segmentation (pivot by asset type & market regime)
 
-**Out of Scope (v1):**
+**Out of Scope (v2):**
 - Live trading system
 - Live broker connection
 - Web UI (CLI + Excel exports)
 - Multi-add / pyramid trading
 - Intraday entry signal generation
 - Options or derivatives
+- Risk metrics (Sharpe, Sortino, drawdown) — deferred to v3
 
 ## Future Enhancements
 

@@ -1,10 +1,10 @@
 # Swing Trade Backtester — Project Summary v2
 
 **Started**: May 17 2026
-**Status**: 🔄 In Development
+**Status**: ✅ Complete (May 18 2026)
 **Builds on**: v1 (docs/PROJECT_SUMMARY_v1.md)
 
-> Update this document as v2 features are completed. Freeze when v2 is done.
+> Frozen snapshot of v2 completion. All phases implemented and validated.
 
 ---
 
@@ -323,4 +323,4 @@ Expected output: a recommended `ExitProfile` config per asset type + regime comb
 
 ---
 
-**Last Updated**: May 2026 — v2 planning complete, ready for Claude Code implementation
+**Last Updated**: May 18 2026 — v2 complete (Phases 7-11 implemented and validated)
