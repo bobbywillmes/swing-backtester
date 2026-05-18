@@ -12,16 +12,16 @@
 
 **Answer**: Yes. Trail 1% strategy captured **26.15% more upside** on this dataset.
 
-**Status**: ✅ v1 Complete (Phases 1-6). Ready for v2 enhancements.
+**Status**: ✅ v2 Complete (Phases 7-11, May 18 2026). Ready for v3 enhancements.
 
 ---
 
 ## 📚 Essential Documentation
 
 **Start here in order**:
-1. **README.md** — Quick start, typical workflow, all CLI commands
-2. **docs/PROJECT_SUMMARY_v1.md** — What was built in v1, real results, deliverables
-3. **docs/PROJECT_SUMMARY_v2.md** — The starting point for v2 (goals, plans, data models)
+1. **README.md** — Quick start, typical workflow, all CLI commands (v1 & v2)
+2. **docs/PROJECT_SUMMARY_v2.md** — Frozen snapshot of v2 (Phases 7-11 complete)
+3. **docs/PROJECT_SUMMARY_v1.md** — Reference: v1 foundation (Phases 1-6)
 4. **ARCHITECTURE.md** — System design, build order, database schema, engine logic
 5. **ANALYSIS_WORKFLOW.md** — End-to-end analysis guide with examples
 
@@ -35,7 +35,7 @@
 |---|---|
 | Language | TypeScript (strict mode, no `any`) |
 | Database | PostgreSQL 16 (Docker) |
-| ORM | Prisma (8 models) |
+| ORM | Prisma (10 models + RegimeType enum) |
 | Market Data | Massive.com API |
 | Runtime | Node.js (CLI scripts, no web API yet) |
 
@@ -45,7 +45,7 @@
   - `services/` — DB orchestration, API calls
   - `ingestion/` — CSV parsing, API clients
   - `analysis/` — Metrics, scenario ranking
-- `scripts/` — 9 CLI tools (data import → export)
+- `scripts/` — 12 CLI tools (data import → regime computation → export)
 - `prisma/` — Schema, migrations, seed
 - `docs/` — Versioned project summaries
 
@@ -89,17 +89,36 @@
 - **Engine layer**: Uses custom types from `src/types/`
 - **Why**: Engine remains independent of DB schema
 
+### 8. Asset-Type Scoped Scenarios (v2)
+- **Rule**: Each scenario has `assetTypeScope: "ETF" | "STOCK"`
+- **Pattern**: Separate DB records for ETF and Stock variants (e.g., "ETF: +1% Unlock → Trail 0.5%" and "Stock: +1% Unlock → Trail 0.5%")
+- **Why**: Different asset classes need different exit parameters; easier to filter in Excel
+- **Backtest filtering**: Engine only applies scenarios matching the trade's asset type
+
+### 9. Market Regime Context (v2)
+- **Fields added to BacktestTrade**: `regimeAtEntry` (enum), `spyAtrPctAtEntry` (float)
+- **Computation**: Joined via MarketRegime table on entry date
+- **Available regimes**: TRENDING_LOW_VOL, NORMAL, CHOPPY_HIGH_VOL
+- **Export**: Included in comprehensive CSV for pivot analysis
+
 ---
 
 ## 📋 Common Tasks & Patterns
 
-### Running the Full Workflow
+### Running the Full Workflow (v2)
 ```bash
 npm run ingest-ohlc-bulk              # Or single ticker
 npm run import-trades -- --file data/orders.csv
-npx tsx scripts/create-scenarios.ts
+npm run create-scenarios-v2           # 20 asset-type-scoped scenarios
+npm run compute-regimes               # SPY ATR-based daily regime classification
 npm run run-backtest -- --name "Test" --description "..."
-npm run export-results                 # Or with --runId 5
+npm run export-results                 # Flat CSV with regime context
+```
+
+Or for v1 baseline (6 default scenarios, no regimes):
+```bash
+npx tsx scripts/create-scenarios.ts   # v1: Basic 6 scenarios
+npm run run-backtest -- --name "Test" --description "..."
 ```
 
 ### Adding a New CLI Script
@@ -122,11 +141,16 @@ npm run export-results                 # Or with --runId 5
 - **Test by**: Running backtest with test data
 - **Verify**: Check `src/engine/exit-evaluator.ts` for priority order
 
-### Adding a New Exit Scenario
-1. Edit `scripts/create-scenarios.ts`
-2. Upsert new ExitScenario record
-3. Run: `npx tsx scripts/create-scenarios.ts`
-4. Run backtest to test
+### Adding a New Exit Scenario (v2)
+1. Edit `scripts/create-scenarios-v2.ts`
+2. Add to appropriate group (Trail Only / Target Unlock Trail / Fixed Target)
+3. Create **separate entries** for ETF and STOCK variants in `assetTypeScope`
+4. Set `targetIsHardExit` appropriately:
+   - `true` (default) = exit immediately at target price (Group 3)
+   - `false` = target activates trail without exiting (Group 2)
+5. Run: `npm run create-scenarios-v2`
+6. Run backtest to validate: `npm run run-backtest -- --name "Test"`
+7. Export and verify in Excel: `npm run export-results`
 
 ---
 
@@ -150,13 +174,23 @@ npm run export-results                 # Or with --runId 5
 - **Location**: `docs/PROJECT_SUMMARY_v1.md` (frozen)
 - **Phases**: 1-6 complete (Foundation → Export & Cleanup)
 - **Status**: Production-ready, tested on 162 real trades
+- **Key Finding**: Trail 1% strategy captured 26.15% more upside than actual exits
 
-### v2 (In progress)
-1. Create `docs/PROJECT_SUMMARY_v2.md` (living document) ✅
-2. Update this CLAUDE.md with new conventions/patterns
-3. Update README.md with new features
-4. Keep version summary updated throughout v2
-5. When complete, freeze v2 and start v3
+### v2 (Complete)
+- **Location**: `docs/PROJECT_SUMMARY_v2.md` (frozen, May 18 2026)
+- **Phases**: 7-11 complete (Schema → Regimes → Engine → Scenarios → Export)
+- **Key Additions**:
+  - 20 asset-type-scoped exit scenarios (ETF vs Stock variants)
+  - Market regime classification (SPY ATR-based: Trending/Normal/Choppy)
+  - Comprehensive flat CSV export (30+ context columns)
+  - "Target unlocks trail" feature (targetIsHardExit = false)
+- **Status**: Validated end-to-end, ready for analysis
+
+### v3 (Future)
+- Risk metrics (Sharpe, Sortino, drawdown)
+- Performance attribution by ticker/regime
+- Custom scenario builder UI (optional)
+- Batch scenario optimization
 
 ---
 
@@ -172,21 +206,27 @@ Use this as sanity check if you run new backtests.
 
 ---
 
-## 🚀 Next Phases (Guidance)
+## 🚀 v2 Complete — Next Steps
 
-### v2 Potential (Not Started)
-- Custom scenario builder UI (optional, not committed)
-- Performance attribution by ticker
-- Risk metrics (Sharpe, Sortino, max drawdown)
-- Batch scenario optimization
+### Immediate (v2 Validation)
+1. Run backtests with v2 scenarios and regime filters
+2. Analyze results in Excel: pivot by `assetTypeScope`, `scenarioGroup`, `regimeAtEntry`
+3. Identify top scenarios per asset type + regime combination
+4. Document findings in analysis report
+
+### v3 Potential (When Needed)
+- **Risk metrics**: Sharpe ratio, Sortino ratio, max drawdown
+- **Attribution**: Which scenarios beat actual per ticker, per regime
+- **Optimization**: Batch test scenario parameters (grid search)
+- **UI**: Custom scenario builder (optional, if analysis workflows demand it)
 
 ### Beyond (Stretch Goals)
-- Web dashboard for monitoring
-- Live market data integration
-- Paper trading automation
-- Real trading integration (requires careful design)
+- Web dashboard for interactive result visualization
+- Live market data integration (real-time regime updates)
+- Paper trading automation (automated order placement)
+- Real trading integration (requires careful design & approval)
 
-**Stay in CLI + Excel for v1. Web comes later if needed.**
+**Current recommended workflow: CLI + Excel pivot tables for v2 analysis. Web UI comes later if needed.**
 
 ---
 
@@ -247,7 +287,7 @@ Future sessions should preserve:
 
 **GitHub**: https://github.com/bobbywillmes/swing-backtester
 
-**Current version**: v1 (Phases 1-6 complete)
+**Current version**: v2 (Phases 7-11 complete, May 18 2026)
 
 **Database**: PostgreSQL 16 on port 5433 (Docker)
 
@@ -265,5 +305,5 @@ Future sessions should preserve:
 
 ---
 
-**Last Updated**: May 2026, v1 complete  
-**Next Review**: When v2 development begins
+**Last Updated**: May 18 2026, v2 complete  
+**Next Review**: When v3 development begins (or during v2 analysis)
