@@ -142,11 +142,8 @@ const scenarios: ScenarioDefinition[] = [
 async function main() {
   console.log("Seeding v2 exit scenarios...");
 
-  let createdCount = 0;
-  let updatedCount = 0;
-
   for (const scenario of scenarios) {
-    const result = await prisma.exitScenario.upsert({
+    await prisma.exitScenario.upsert({
       where: { name: scenario.name },
       update: {
         targetPct: scenario.targetPct ?? null,
@@ -168,10 +165,6 @@ async function main() {
         assetTypeScope: scenario.assetType,
       },
     });
-
-    if (result) {
-      createdCount++;
-    }
   }
 
   // Since upsert doesn't tell us update vs create, do a final count

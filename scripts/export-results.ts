@@ -42,6 +42,20 @@ function escapeCSV(value: string | number | null | undefined): string {
   return str;
 }
 
+function determineScenarioGroup(scenario: {
+  targetPct: number | null;
+  targetIsHardExit: boolean | null;
+  trailingStopPct: number | null;
+}): string {
+  if (scenario.targetPct && scenario.targetIsHardExit === false) {
+    return "Target Unlocks Trail";
+  } else if (scenario.targetPct && scenario.targetIsHardExit !== false) {
+    return "Fixed Target";
+  } else {
+    return "Trail Only";
+  }
+}
+
 function formatDateTimeForExcel(date: Date | null | undefined): string {
   if (!date) return "N/A";
 
@@ -201,43 +215,108 @@ async function main() {
     console.log(`Debug: Expected rows: 6 scenarios × ${uniqueOrderIds.size - 1} orders = ${6 * (uniqueOrderIds.size - 1)}`);
 
     if (allTrades.length > 0) {
-      let tradesCSV = `Ticker,Order ID,Entry Date,Entry Price,Trail Activated,Exit Date,Exit Price,Scenario,Exit Reason,Result %,vs Actual $,Bars Held,Days Held,Running High\n`;
+      // Comprehensive flat export with all v2 context columns
+      let tradesCSV = `Order ID,Ticker,Asset Type,Entry Date,Entry Price,Shares,Capital Deployed,Scenario Name,Scenario Group,Trail %,Trail Activate %,Target %,Target Is Hard Exit,Stop %,Max Hold Bars,Exit Date,Exit Price,Exit Reason,Result %,Result $,vs Actual %,vs Actual $,Bars Held,Days Held,Running High $,Running High %,Trail Activated At,Actual Exit Date,Actual Exit Price,Actual Result %,Actual Result $,Regime at Entry,SPY ATR % at Entry\n`;
 
       for (const trade of allTrades) {
         const entryDateTime = formatDateTimeForExcel(trade.actualTrade.entryTs);
         const exitDateTime = formatDateTimeForExcel(trade.exitTs);
+        const actualExitDateTime = formatDateTimeForExcel(
+          trade.actualTrade.actualExitTs
+        );
         const trailActivatedDateTime = formatDateTimeForExcel(
           trade.trailActivatedAt
         );
-        const exitPrice = trade.exitPrice?.toFixed(2) || "OPEN";
-        const result = trade.pnlPct
-          ? (trade.pnlPct * 100).toFixed(2)
+
+        const orderId = trade.actualTrade.orders[0]?.etradeOrderId || "N/A";
+        const ticker = trade.actualTrade.ticker;
+        const assetType = trade.scenario.assetTypeScope || "UNKNOWN";
+        const entryPrice = trade.actualTrade.entryPrice.toFixed(2);
+        const shares = trade.actualTrade.shares.toFixed(0);
+        const capitalDeployed = (
+          trade.actualTrade.entryPrice * trade.actualTrade.shares
+        ).toFixed(2);
+
+        const scenarioName = trade.scenario.name;
+        const scenarioGroup = determineScenarioGroup(trade.scenario);
+
+        const trailingStopPct = trade.scenario.trailingStopPct
+          ? (trade.scenario.trailingStopPct * 100).toFixed(2) + "%"
           : "N/A";
-        const vsActual = trade.pnlVsActualDollar?.toFixed(2) || "N/A";
+        const trailActivateAfterPct = trade.scenario.trailActivateAfterPct
+          ? (trade.scenario.trailActivateAfterPct * 100).toFixed(2) + "%"
+          : "N/A";
+        const targetPct = trade.scenario.targetPct
+          ? (trade.scenario.targetPct * 100).toFixed(2) + "%"
+          : "N/A";
+        const stopPct = trade.scenario.stopPct
+          ? (trade.scenario.stopPct * 100).toFixed(2) + "%"
+          : "N/A";
+
+        const exitPrice = trade.exitPrice?.toFixed(2) || "OPEN";
+        const resultPct = trade.pnlPct
+          ? (trade.pnlPct * 100).toFixed(2) + "%"
+          : "N/A";
+        const resultDollar = trade.pnlDollar?.toFixed(2) || "N/A";
+        const vsActualPct = trade.pnlVsActualPct
+          ? (trade.pnlVsActualPct * 100).toFixed(2) + "%"
+          : "N/A";
+        const vsActualDollar = trade.pnlVsActualDollar?.toFixed(2) || "N/A";
         const bars = trade.barsInTrade || "N/A";
         const days =
           trade.barsInTrade && trade.barsInTrade > 0
             ? (trade.barsInTrade / 78).toFixed(2)
             : "N/A";
         const runningHigh = trade.runningHighPrice?.toFixed(2) || "N/A";
-        const orderId = trade.actualTrade.orders[0]?.etradeOrderId || "N/A";
-        const scenarioName = trade.scenario.name;
+        const runningHighPct = trade.runningHighPct
+          ? (trade.runningHighPct * 100).toFixed(2) + "%"
+          : "N/A";
+
+        const actualExitPrice = trade.actualTrade.actualExitPrice?.toFixed(2) || "OPEN";
+        const actualResultPct = trade.actualTrade.actualPnlPct
+          ? (trade.actualTrade.actualPnlPct * 100).toFixed(2) + "%"
+          : "N/A";
+        const actualResultDollar = trade.actualTrade.actualPnlDollar?.toFixed(2) || "N/A";
+
+        const regimeAtEntry = trade.regimeAtEntry || "N/A";
+        const spyAtrPctAtEntry = trade.spyAtrPctAtEntry
+          ? (trade.spyAtrPctAtEntry * 100).toFixed(2) + "%"
+          : "N/A";
 
         tradesCSV += [
-          escapeCSV(trade.actualTrade.ticker),
           orderId,
+          ticker,
+          assetType,
           entryDateTime,
-          trade.actualTrade.entryPrice.toFixed(2),
-          trailActivatedDateTime,
+          entryPrice,
+          shares,
+          capitalDeployed,
+          escapeCSV(scenarioName),
+          escapeCSV(scenarioGroup),
+          trailingStopPct,
+          trailActivateAfterPct,
+          targetPct,
+          trade.scenario.targetIsHardExit !== false ? "Yes" : "No",
+          stopPct,
+          trade.scenario.maxHoldBars || "N/A",
           exitDateTime,
           exitPrice,
-          escapeCSV(scenarioName),
           trade.exitReason || "OPEN",
-          result,
-          vsActual,
+          resultPct,
+          resultDollar,
+          vsActualPct,
+          vsActualDollar,
           bars,
           days,
           runningHigh,
+          runningHighPct,
+          trailActivatedDateTime,
+          actualExitDateTime,
+          actualExitPrice,
+          actualResultPct,
+          actualResultDollar,
+          regimeAtEntry,
+          spyAtrPctAtEntry,
         ]
           .map(escapeCSV)
           .join(",");
@@ -247,7 +326,7 @@ async function main() {
       const tradesFile = join(exportDir, `run-${runId}-scenario-trades.csv`);
       writeFileSync(tradesFile, tradesCSV);
       console.log(
-        `✓ Exported all scenario trades (${allTrades.length} trades): ${tradesFile}`
+        `✓ Exported comprehensive trades CSV (${allTrades.length} rows): ${tradesFile}`
       );
     }
 
