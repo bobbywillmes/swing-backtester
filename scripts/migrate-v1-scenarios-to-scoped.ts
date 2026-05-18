@@ -38,7 +38,7 @@ async function main() {
     for (const oldScenario of unscopedScenarios) {
       console.log(`\n  Migrating: ${oldScenario.name}`);
 
-      // Create ETF variant
+      // Create ETF variant (with standardized "Stock:" casing, not "STOCK:")
       const etfScenario = await prisma.exitScenario.upsert({
         where: { name: `ETF: ${oldScenario.name}` },
         update: {
@@ -63,9 +63,9 @@ async function main() {
       });
       console.log(`    ✓ Created ETF variant (ID: ${etfScenario.id})`);
 
-      // Create STOCK variant
+      // Create Stock variant (with standardized "Stock:" casing)
       const stockScenario = await prisma.exitScenario.upsert({
-        where: { name: `STOCK: ${oldScenario.name}` },
+        where: { name: `Stock: ${oldScenario.name}` },
         update: {
           assetTypeScope: "STOCK",
           targetPct: oldScenario.targetPct,
@@ -76,7 +76,7 @@ async function main() {
           maxHoldBars: oldScenario.maxHoldBars,
         },
         create: {
-          name: `STOCK: ${oldScenario.name}`,
+          name: `Stock: ${oldScenario.name}`,
           assetTypeScope: "STOCK",
           targetPct: oldScenario.targetPct,
           targetIsHardExit: oldScenario.targetIsHardExit,
