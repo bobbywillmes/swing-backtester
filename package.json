@@ -18,7 +18,9 @@
     "list-runs": "tsx scripts/list-runs.ts",
     "cleanup-trades": "tsx scripts/cleanup-trades.ts",
     "migrate-v1-scenarios": "tsx scripts/migrate-v1-scenarios-to-scoped.ts",
-    "standardize-scenarios": "tsx scripts/standardize-scenario-names.ts"
+    "standardize-scenarios": "tsx scripts/standardize-scenario-names.ts",
+    "find-duplicate-scenarios": "tsx scripts/find-duplicate-scenarios.ts",
+    "remove-duplicate-scenarios": "tsx scripts/remove-duplicate-scenarios.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.10.2",

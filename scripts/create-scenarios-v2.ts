@@ -61,6 +61,7 @@ const scenarios: ScenarioDefinition[] = [
     targetPct: 0.005,
     targetIsHardExit: false,
     trailingStopPct: -0.0025,
+    trailActivateAfterPct: 0.005,
   },
   {
     name: "ETF: +0.5% Unlock -> Trail 0.5%",
@@ -68,6 +69,7 @@ const scenarios: ScenarioDefinition[] = [
     targetPct: 0.005,
     targetIsHardExit: false,
     trailingStopPct: -0.005,
+    trailActivateAfterPct: 0.005,
   },
   {
     name: "ETF: +1.0% Unlock -> Trail 0.5%",
@@ -75,6 +77,7 @@ const scenarios: ScenarioDefinition[] = [
     targetPct: 0.01,
     targetIsHardExit: false,
     trailingStopPct: -0.005,
+    trailActivateAfterPct: 0.01,
   },
   {
     name: "ETF: +1.0% Unlock -> Trail 0.75%",
@@ -82,6 +85,7 @@ const scenarios: ScenarioDefinition[] = [
     targetPct: 0.01,
     targetIsHardExit: false,
     trailingStopPct: -0.0075,
+    trailActivateAfterPct: 0.01,
   },
   {
     name: "Stock: +1.0% Unlock -> Trail 0.5%",
@@ -89,6 +93,7 @@ const scenarios: ScenarioDefinition[] = [
     targetPct: 0.01,
     targetIsHardExit: false,
     trailingStopPct: -0.005,
+    trailActivateAfterPct: 0.01,
   },
   {
     name: "Stock: +1.0% Unlock -> Trail 1.0%",
@@ -96,6 +101,7 @@ const scenarios: ScenarioDefinition[] = [
     targetPct: 0.01,
     targetIsHardExit: false,
     trailingStopPct: -0.01,
+    trailActivateAfterPct: 0.01,
   },
   {
     name: "Stock: +2.0% Unlock -> Trail 1.0%",
@@ -103,6 +109,7 @@ const scenarios: ScenarioDefinition[] = [
     targetPct: 0.02,
     targetIsHardExit: false,
     trailingStopPct: -0.01,
+    trailActivateAfterPct: 0.02,
   },
   {
     name: "Stock: +2.0% Unlock -> Trail 1.5%",
@@ -110,6 +117,7 @@ const scenarios: ScenarioDefinition[] = [
     targetPct: 0.02,
     targetIsHardExit: false,
     trailingStopPct: -0.015,
+    trailActivateAfterPct: 0.02,
   },
 
   // Group 3: Fixed Target Only (baseline, hard exit)
