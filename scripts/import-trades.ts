@@ -76,14 +76,14 @@ async function main() {
     console.log("\nPairing orders into trades...");
     const pairingStats = await pairTrades();
 
-    console.log(`  Buys:  ${pairingStats.totalBuys}`);
-    console.log(`  Sells: ${pairingStats.totalSells}`);
-    console.log(`  ✓ Paired trades: ${pairingStats.pairedTrades}`);
-    if (pairingStats.unpaired.buys > 0) {
-      console.log(`  ⚠ Unpaired buys (open): ${pairingStats.unpaired.buys}`);
-    }
-    if (pairingStats.unpaired.sells > 0) {
-      console.log(`  ⚠ Orphaned sells: ${pairingStats.unpaired.sells}`);
+    console.log("\nPairing summary:");
+    console.log(`  Trades created: ${pairingStats.tradesCreated}`);
+    console.log(`  Single-entry trades: ${pairingStats.singleEntry}`);
+    console.log(`  Trades with adds (double-down): ${pairingStats.withAdds}`);
+    console.log(`  Trades with 2+ adds (triple-down): ${pairingStats.withMultipleAdds}`);
+    console.log(`  Open positions (no SELL found): ${pairingStats.openPositions}`);
+    if (pairingStats.orphanedSells > 0) {
+      console.log(`  ⚠ Orphaned SELLs (skipped): ${pairingStats.orphanedSells}`);
     }
     console.log(`  Duration: ${pairingStats.durationMs}ms`);
 

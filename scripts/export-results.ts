@@ -216,7 +216,7 @@ async function main() {
 
     if (allTrades.length > 0) {
       // Comprehensive flat export with all v2 context columns
-      let tradesCSV = `Order ID,Ticker,Asset Type,Entry Date,Entry Price,Shares,Capital Deployed,Scenario Name,Scenario Group,Trail %,Trail Activate %,Target %,Target Is Hard Exit,Stop %,Max Hold Bars,Exit Date,Exit Price,Exit Reason,Result %,Result $,vs Actual %,vs Actual $,Bars Held,Days Held,Running High $,Running High %,Trail Activated At,Actual Exit Date,Actual Exit Price,Actual Result %,Actual Result $,Regime at Entry,SPY ATR % at Entry\n`;
+      let tradesCSV = `Order ID,Ticker,Asset Type,Entry Date,Entry Price,Shares,Capital Deployed,Entry Type,Scenario Name,Scenario Group,Trail %,Trail Activate %,Target %,Target Is Hard Exit,Stop %,Max Hold Bars,Exit Date,Exit Price,Exit Reason,Result %,Result $,vs Actual %,vs Actual $,Bars Held,Days Held,Running High $,Running High %,Trail Activated At,Actual Exit Date,Actual Exit Price,Actual Result %,Actual Result $,Regime at Entry,SPY ATR % at Entry\n`;
 
       for (const trade of allTrades) {
         const entryDateTime = formatDateTimeForExcel(trade.actualTrade.entryTs);
@@ -236,6 +236,14 @@ async function main() {
         const capitalDeployed = (
           trade.actualTrade.entryPrice * trade.actualTrade.shares
         ).toFixed(2);
+
+        // Determine entry type based on addCount
+        let entryType = "Single Entry";
+        if (trade.actualTrade.addCount === 1) {
+          entryType = "Double-Down";
+        } else if (trade.actualTrade.addCount >= 2) {
+          entryType = `Add(${trade.actualTrade.addCount})`;
+        }
 
         const scenarioName = trade.scenario.name;
         const scenarioGroup = determineScenarioGroup(trade.scenario);
@@ -291,6 +299,7 @@ async function main() {
           entryPrice,
           shares,
           capitalDeployed,
+          entryType,
           escapeCSV(scenarioName),
           escapeCSV(scenarioGroup),
           trailingStopPct,

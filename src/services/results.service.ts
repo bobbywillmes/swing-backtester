@@ -127,6 +127,7 @@ export async function getRunAllTrades(runId: number) {
           actualExitTs: true,
           actualPnlPct: true,
           actualPnlDollar: true,
+          addCount: true,
           security: {
             select: {
               assetType: true,

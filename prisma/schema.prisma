@@ -40,6 +40,12 @@ enum RegimeType {
   CHOPPY_HIGH_VOL    // spyAtrPct > 0.015
 }
 
+enum OrderRole {
+  OPEN   // first BUY that opens the position
+  ADD    // subsequent BUY while position is already open
+  CLOSE  // SELL that closes the entire position
+}
+
 // ─── Security ────────────────────────────────────────────────────────────────
 
 model Security {
@@ -112,8 +118,9 @@ model ActualOrder {
   commission    Float?    // not in E*TRADE order export; left for future use
 
   // Set after pairing step
-  tradeId Int?
-  trade   ActualTrade? @relation(fields: [tradeId], references: [id])
+  tradeId   Int?
+  orderRole OrderRole?  // set by trade.pairer.ts; null = not yet paired
+  trade     ActualTrade? @relation(fields: [tradeId], references: [id])
 
   security Security @relation(fields: [ticker], references: [symbol])
 
@@ -144,6 +151,9 @@ model ActualTrade {
 
   // Duration
   actualBarsHeld Int?         // 5-min candle bars from entry to exit
+
+  // Multi-buy tracking
+  addCount Int @default(0)    // number of ADD orders beyond the first BUY (0 = single-entry, 1 = double-down, etc.)
 
   importedAt DateTime @default(now())
   notes      String?

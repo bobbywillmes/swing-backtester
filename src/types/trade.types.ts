@@ -39,12 +39,11 @@ export interface ImportError {
 }
 
 export interface PairingStats {
-  totalBuys: number;
-  totalSells: number;
-  pairedTrades: number;
-  unpaired: {
-    buys: number;
-    sells: number;
-  };
+  tradesCreated: number;      // total ActualTrade records created
+  singleEntry: number;        // trades with addCount === 0
+  withAdds: number;           // trades with addCount === 1 (double-down)
+  withMultipleAdds: number;   // trades with addCount >= 2 (triple-down+)
+  openPositions: number;      // trades with no SELL found (actualExitTs = null)
+  orphanedSells: number;      // SELLs with no matching open position
   durationMs: number;
 }

@@ -1,101 +1,194 @@
 import prisma from "../db/prisma.js";
 import { PairingStats } from "../types/trade.types.js";
 
+interface PositionState {
+  trade: { id: number };
+  buyOrders: Array<{ id: number; quantity: number; priceExecuted: number }>;
+}
+
 export async function pairTrades(): Promise<PairingStats> {
   const startTime = Date.now();
 
-  // Get all unpaired orders
+  // Get all unpaired orders, sorted chronologically per ticker
   const unpairedOrders = await prisma.actualOrder.findMany({
     where: { tradeId: null },
     orderBy: [{ ticker: "asc" }, { executedAt: "asc" }],
   });
 
-  let totalBuys = 0;
-  let totalSells = 0;
-  let pairedTrades = 0;
-  const unpairedBuys = new Set<number>();
-  const unpairedSells = new Set<number>();
+  const openPositions = new Map<string, PositionState>();
+  let orphanedSells = 0;
 
-  // Track buys by ticker that haven't been paired yet
-  const pendingBuys = new Map<string, typeof unpairedOrders[0]>();
-
+  // Process each order chronologically
   for (const order of unpairedOrders) {
-    if (order.side === "BUY") {
-      // Store pending buy (overwrites previous if campaign-like scenario)
-      pendingBuys.set(order.ticker, order);
-      totalBuys++;
-    } else if (order.side === "SELL") {
-      totalSells++;
-      const buy = pendingBuys.get(order.ticker);
+    const { ticker, side } = order;
 
-      if (buy) {
-        // Pair this sell with the pending buy
+    if (side === "BUY") {
+      if (!openPositions.has(ticker)) {
+        // OPEN: Create new trade with this buy as the first entry
         const trade = await prisma.actualTrade.create({
           data: {
-            ticker: order.ticker,
-            entryTs: buy.executedAt,
-            entryPrice: buy.priceExecuted,
-            shares: buy.quantity,
-            capitalDeployed: buy.priceExecuted * buy.quantity,
-            actualExitTs: order.executedAt,
-            actualExitPrice: order.priceExecuted,
-            actualExitReason: determineSellReason(order.priceType),
-            actualPnlPct:
-              (order.priceExecuted - buy.priceExecuted) / buy.priceExecuted,
-            actualPnlDollar:
-              (order.priceExecuted - buy.priceExecuted) * buy.quantity,
+            ticker,
+            entryTs: order.executedAt,
+            entryPrice: order.priceExecuted,
+            shares: order.quantity,
+            capitalDeployed: order.priceExecuted * order.quantity,
+            actualExitTs: null,
+            actualExitPrice: null,
+            actualExitReason: null,
+            actualPnlPct: null,
+            actualPnlDollar: null,
+            addCount: 0,
           },
         });
 
-        // Update orders to reference the trade
-        await prisma.actualOrder.updateMany({
-          where: { id: { in: [buy.id, order.id] } },
-          data: { tradeId: trade.id },
+        // Set orderRole = OPEN
+        await prisma.actualOrder.update({
+          where: { id: order.id },
+          data: {
+            tradeId: trade.id,
+            orderRole: "OPEN",
+          },
         });
 
-        pairedTrades++;
-        pendingBuys.delete(order.ticker);
+        openPositions.set(ticker, {
+          trade: { id: trade.id },
+          buyOrders: [
+            {
+              id: order.id,
+              quantity: order.quantity,
+              priceExecuted: order.priceExecuted,
+            },
+          ],
+        });
       } else {
-        // Sell with no matching buy (orphaned)
-        unpairedSells.add(order.id);
+        // ADD: Link to existing open position
+        const pos = openPositions.get(ticker)!;
+
+        // Set orderRole = ADD and link to trade
+        await prisma.actualOrder.update({
+          where: { id: order.id },
+          data: {
+            tradeId: pos.trade.id,
+            orderRole: "ADD",
+          },
+        });
+
+        // Increment addCount on trade
+        await prisma.actualTrade.update({
+          where: { id: pos.trade.id },
+          data: { addCount: { increment: 1 } },
+        });
+
+        // Track this buy order
+        pos.buyOrders.push({
+          id: order.id,
+          quantity: order.quantity,
+          priceExecuted: order.priceExecuted,
+        });
+      }
+    } else if (side === "SELL") {
+      if (openPositions.has(ticker)) {
+        const pos = openPositions.get(ticker)!;
+
+        // Compute weighted average entry price across all buys
+        const totalShares = pos.buyOrders.reduce(
+          (sum, b) => sum + b.quantity,
+          0
+        );
+        const totalCapital = pos.buyOrders.reduce(
+          (sum, b) => sum + b.priceExecuted * b.quantity,
+          0
+        );
+        const weightedEntryPrice = totalCapital / totalShares;
+
+        // Compute P&L against weighted entry
+        const exitPrice = order.priceExecuted;
+        const pnlPct = (exitPrice - weightedEntryPrice) / weightedEntryPrice;
+        const pnlDollar = (exitPrice - weightedEntryPrice) * totalShares;
+
+        // Update trade with corrected entry fields and exit
+        await prisma.actualTrade.update({
+          where: { id: pos.trade.id },
+          data: {
+            entryPrice: weightedEntryPrice,
+            shares: totalShares,
+            capitalDeployed: totalCapital,
+            actualExitTs: order.executedAt,
+            actualExitPrice: exitPrice,
+            actualExitReason: determineSellReason(order.priceType),
+            actualPnlPct: pnlPct,
+            actualPnlDollar: pnlDollar,
+          },
+        });
+
+        // Set orderRole = CLOSE on sell order
+        await prisma.actualOrder.update({
+          where: { id: order.id },
+          data: {
+            tradeId: pos.trade.id,
+            orderRole: "CLOSE",
+          },
+        });
+
+        openPositions.delete(ticker);
+      } else {
+        // Orphaned SELL: no matching open position
+        console.warn(
+          `Orphaned SELL (no open position): ${ticker} at ${order.executedAt}`
+        );
+        orphanedSells++;
       }
     }
   }
 
-  // Remaining pending buys are open trades
-  for (const buy of pendingBuys.values()) {
-    const trade = await prisma.actualTrade.create({
+  // Handle remaining open positions (buys with no subsequent sell)
+  for (const [_, pos] of openPositions) {
+    const totalShares = pos.buyOrders.reduce(
+      (sum, b) => sum + b.quantity,
+      0
+    );
+    const totalCapital = pos.buyOrders.reduce(
+      (sum, b) => sum + b.priceExecuted * b.quantity,
+      0
+    );
+    const weightedEntryPrice = totalCapital / totalShares;
+
+    // Update trade with correct weighted entry values
+    await prisma.actualTrade.update({
+      where: { id: pos.trade.id },
       data: {
-        ticker: buy.ticker,
-        entryTs: buy.executedAt,
-        entryPrice: buy.priceExecuted,
-        shares: buy.quantity,
-        capitalDeployed: buy.priceExecuted * buy.quantity,
+        entryPrice: weightedEntryPrice,
+        shares: totalShares,
+        capitalDeployed: totalCapital,
         actualExitTs: null,
         actualExitPrice: null,
         actualExitReason: "open",
+        actualPnlPct: null,
+        actualPnlDollar: null,
       },
     });
-
-    // Update buy order to reference the trade
-    await prisma.actualOrder.update({
-      where: { id: buy.id },
-      data: { tradeId: trade.id },
-    });
-
-    pairedTrades++;
   }
+
+  // Compute statistics
+  const allTrades = await prisma.actualTrade.findMany({
+    select: { id: true, addCount: true, actualExitTs: true },
+  });
+
+  const tradesCreated = allTrades.length;
+  const singleEntry = allTrades.filter((t) => t.addCount === 0).length;
+  const withAdds = allTrades.filter((t) => t.addCount === 1).length;
+  const withMultipleAdds = allTrades.filter((t) => t.addCount >= 2).length;
+  const openPositionCount = allTrades.filter((t) => t.actualExitTs === null).length;
 
   const durationMs = Date.now() - startTime;
 
   return {
-    totalBuys,
-    totalSells,
-    pairedTrades,
-    unpaired: {
-      buys: pendingBuys.size,
-      sells: unpairedSells.size,
-    },
+    tradesCreated,
+    singleEntry,
+    withAdds,
+    withMultipleAdds,
+    openPositions: openPositionCount,
+    orphanedSells,
     durationMs,
   };
 }
