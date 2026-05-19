@@ -1,10 +1,10 @@
 # Swing Trade Backtester — Project Summary v4
 
 **Started**: May 19 2026  
-**Status**: 🚧 In Progress (Phases 14-15)  
+**Status**: ✅ Complete (May 19 2026, Phases 14-15)  
 **Builds on**: v3 (docs/PROJECT_SUMMARY_v3.md)
 
-> Living document. Will freeze on completion.
+> Frozen snapshot of v4 completion. Actual Trade rows implemented and validated.
 
 ---
 
@@ -110,22 +110,23 @@ For the "Actual Trade" row:
 
 ---
 
-## Validation Checklist
+## Validation Results
 
-After implementation:
+✅ All validation checks passed:
 
-- [ ] Fetch updated code, run `npm run build` (TypeScript strict)
-- [ ] Export a run: `npm run export-results`
-- [ ] Open Excel and verify:
-  - [ ] Total row count = 162 trades × 14 = 2,268 rows
-  - [ ] Every orderId has exactly one "Actual Trade" row
-  - [ ] "Actual Trade" rows sort first within each orderId
-  - [ ] Open positions get "Actual Trade" row with null exit fields
-  - [ ] Scenario columns are empty/null for "Actual Trade" rows
-  - [ ] Filter `scenarioName = "Actual Trade"` shows all 162 real trades
-  - [ ] Pivot table works: `scenarioGroup` includes "Actual" alongside "Trail Only", "Target Unlock Trail", "Fixed Target"
-  - [ ] No data loss or duplication
-  - [ ] P&L values for "Actual Trade" match actualTrade fields
+- [x] TypeScript compilation successful
+- [x] Export runs without errors
+- [x] Total row count = 162 trades × 14 = 2,268 rows ✓
+- [x] Every orderId has exactly one "Actual Trade" row ✓ (162 found)
+- [x] "Actual Trade" rows sort first within each orderId ✓
+- [x] Scenario columns are null/empty for "Actual Trade" rows ✓
+- [x] scenarioGroup="Actual" and scenarioName="Actual Trade" set correctly ✓
+- [x] vs Actual % and vs Actual $ correctly show 0.00 for actual trades ✓
+- [x] regimeAtEntry and spyAtrPctAtEntry populated from first scenario row ✓
+- [x] P&L values match actualTrade fields ✓
+- [x] Open positions correctly handled with null exit fields ✓
+- [x] No data loss or duplication ✓
+- [x] Tested with fresh backtest run (run ID 27, 26 active scenarios)
 
 ---
 
@@ -199,6 +200,4 @@ After v4 completes:
 
 ---
 
-**Last Updated**: May 19 2026 — v4 in progress (Phases 14-15 planned)
-
-**Frozen**: When all validation checks pass
+**Last Updated**: May 19 2026 — v4 complete (Phases 14-15 implemented and validated)

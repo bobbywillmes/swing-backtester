@@ -59,6 +59,13 @@ This project uses **version-based summaries** to track major milestone accomplis
   - OrderRole tracking (OPEN/ADD/CLOSE) for position construction visibility
   - "Entry Type" column in exports (Single Entry / Double-Down / Add(N))
 
+- **`docs/PROJECT_SUMMARY_v4.md`** — Frozen snapshot of v4 (Phases 14-15, May 19 2026)
+  - Added "Actual Trade" rows as first row per trade in CSV exports
+  - Each trade now has 14 rows: 1 actual benchmark + 13 scenarios
+  - Enables head-to-head comparison in Excel (filter scenarioName="Actual Trade")
+  - Fixed falsy-check bug: properly display 0.00% for zero P&L values
+  - 2,268 total rows exported per run (was 2,106)
+
 **For future sessions**: 
 - Start with current **README.md** for quick orientation
 - Reference **docs/PROJECT_SUMMARY_v{current}.md** for what was accomplished this version
@@ -191,7 +198,7 @@ swing-backtester/
 
 ## Build Status
 
-All phases complete (v1, v2, & v3). See [ARCHITECTURE.md](ARCHITECTURE.md) for full specifications.
+All phases complete (v1, v2, v3, & v4). See [ARCHITECTURE.md](ARCHITECTURE.md) for full specifications.
 
 ### v1 (Complete)
 
@@ -248,6 +255,20 @@ All phases complete (v1, v2, & v3). See [ARCHITECTURE.md](ARCHITECTURE.md) for f
 - Fixed bug where multi-buy trades used only last BUY price
 - Added "Entry Type" column to CSV exports (Single Entry / Double-Down / Add(N))
 - Validation: 162 trades re-analyzed with correct entry prices (141 single, 12 double, 9 triple+)
+
+### v4 (Complete)
+
+### Phase 14 ✓ Query Enhancement
+- Added `actualExitReason` and `actualBarsHeld` to getRunAllTrades query
+- Support for synthetic "Actual Trade" row generation in exports
+
+### Phase 15 ✓ Actual Trade Benchmark Rows
+- Generate synthetic "Actual Trade" row as first row per trade in CSV exports
+- Each trade now has 14 rows: 1 actual + 13 scenarios
+- scenarioGroup="Actual" enables filtering and pivoting in Excel
+- vs Actual % and vs Actual $ show 0.00 for actual trades (not N/A)
+- Fixed falsy-check bug: properly handle zero values in P&L calculations
+- Validation: 162 trades × 14 rows = 2,268 total export rows
 
 ## Data Integrity & Validation (Post-v2)
 
@@ -345,7 +366,7 @@ npm run cleanup-trades                                           # Reset trade d
 
 ## Scope
 
-**In Scope (v1, v2, & v3):**
+**In Scope (v1, v2, v3, & v4):**
 - Historical swing trade analysis with trailing stop simulation
 - Bar-by-bar backtest engine with priority-based exit logic
 - Asset-type-scoped exit scenarios (ETF vs Stock parameters)
@@ -355,16 +376,17 @@ npm run cleanup-trades                                           # Reset trade d
 - Regime-aware result segmentation (pivot by asset type & market regime)
 - Multi-buy position handling with weighted-average entry pricing (v3)
 - Position construction tracking (OPEN/ADD/CLOSE order roles)
+- Actual trade benchmark rows for head-to-head scenario comparison (v4)
 
-**Out of Scope (v3):**
+**Out of Scope (v4):**
 - Live trading system
 - Live broker connection
 - Web UI (CLI + Excel exports)
 - Intraday entry signal generation
 - Options or derivatives
-- Risk metrics (Sharpe, Sortino, drawdown) — deferred to v4
+- Risk metrics (Sharpe, Sortino, drawdown) — deferred to v5
 
-## Future Enhancements (v4+)
+## Future Enhancements (v5+)
 
 - Risk metrics (Sharpe, Sortino, max drawdown analysis)
 - Performance attribution (which scenarios beat actual by ticker, by regime)
