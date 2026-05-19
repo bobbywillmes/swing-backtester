@@ -125,8 +125,10 @@ export async function getRunAllTrades(runId: number) {
           shares: true,
           actualExitPrice: true,
           actualExitTs: true,
+          actualExitReason: true,
           actualPnlPct: true,
           actualPnlDollar: true,
+          actualBarsHeld: true,
           addCount: true,
           security: {
             select: {

@@ -208,17 +208,72 @@ async function main() {
       allTrades.map((t) => t.actualTrade.orders[0]?.etradeOrderId || "UNKNOWN")
     );
     const withoutOrderIds = allTrades.filter((t) => !t.actualTrade.orders[0]?.etradeOrderId).length;
+    const numScenarios = run.scenarios.length;
 
     console.log(`Debug: ${uniqueActualTrades.size} unique actual trades`);
     console.log(`Debug: ${uniqueOrderIds.size} unique order IDs`);
     console.log(`Debug: ${withoutOrderIds} trades without order IDs`);
-    console.log(`Debug: Expected rows: 6 scenarios × ${uniqueOrderIds.size - 1} orders = ${6 * (uniqueOrderIds.size - 1)}`);
+    console.log(`Debug: ${numScenarios} scenarios in this run`);
+    console.log(`Debug: Expected rows: (${numScenarios} scenarios + 1 actual) × ${uniqueActualTrades.size} trades = ${(numScenarios + 1) * uniqueActualTrades.size}`);
 
-    if (allTrades.length > 0) {
-      // Comprehensive flat export with all v2 context columns
+    // Group trades by actualTradeId, with synthetic "Actual Trade" row first per group
+    const tradesByActualId = new Map<number, typeof allTrades>();
+    for (const trade of allTrades) {
+      const actualId = trade.actualTrade.id;
+      if (!tradesByActualId.has(actualId)) {
+        tradesByActualId.set(actualId, []);
+      }
+      tradesByActualId.get(actualId)!.push(trade);
+    }
+
+    // Build ordered trades with synthetic rows first per actualTradeId
+    const orderedTrades = [];
+    for (const [, trades] of tradesByActualId) {
+      const firstTrade = trades[0];
+
+      // Create synthetic "Actual Trade" row from the first trade's actualTrade data
+      const actualTradeRow = {
+        id: -1, // synthetic marker
+        runId: firstTrade.runId,
+        actualTradeId: firstTrade.actualTradeId,
+        scenarioId: -1, // synthetic marker
+        exitTs: firstTrade.actualTrade.actualExitTs,
+        exitPrice: firstTrade.actualTrade.actualExitPrice,
+        exitReason: null,
+        pnlPct: firstTrade.actualTrade.actualPnlPct,
+        pnlDollar: firstTrade.actualTrade.actualPnlDollar,
+        pnlVsActualPct: 0,
+        pnlVsActualDollar: 0,
+        barsInTrade: firstTrade.actualTrade.actualBarsHeld,
+        runningHighPrice: null as number | null,
+        runningHighPct: null as number | null,
+        trailActivatedAt: null as Date | null,
+        regimeAtEntry: firstTrade.regimeAtEntry,
+        spyAtrPctAtEntry: firstTrade.spyAtrPctAtEntry,
+        actualTrade: firstTrade.actualTrade,
+        scenario: {
+          name: "Actual Trade",
+          targetPct: null,
+          targetIsHardExit: null,
+          stopPct: null,
+          trailingStopPct: null,
+          trailActivateAfterPct: null,
+          maxHoldBars: null,
+          assetTypeScope: null,
+        } as any,
+      } as any;
+
+      orderedTrades.push(actualTradeRow);
+      orderedTrades.push(...trades);
+    }
+
+    const processedTrades = orderedTrades;
+
+    if (processedTrades.length > 0) {
+      // Comprehensive flat export with all v2 context columns + v4 actual trade rows
       let tradesCSV = `Order ID,Ticker,Asset Type,Entry Date,Entry Price,Shares,Capital Deployed,Entry Type,Scenario Name,Scenario Group,Trail %,Trail Activate %,Target %,Target Is Hard Exit,Stop %,Max Hold Bars,Exit Date,Exit Price,Exit Reason,Result %,Result $,vs Actual %,vs Actual $,Bars Held,Days Held,Running High $,Running High %,Trail Activated At,Actual Exit Date,Actual Exit Price,Actual Result %,Actual Result $,Regime at Entry,SPY ATR % at Entry\n`;
 
-      for (const trade of allTrades) {
+      for (const trade of processedTrades) {
         const entryDateTime = formatDateTimeForExcel(trade.actualTrade.entryTs);
         const exitDateTime = formatDateTimeForExcel(trade.exitTs);
         const actualExitDateTime = formatDateTimeForExcel(
@@ -246,7 +301,10 @@ async function main() {
         }
 
         const scenarioName = trade.scenario.name;
-        const scenarioGroup = determineScenarioGroup(trade.scenario);
+        let scenarioGroup = determineScenarioGroup(trade.scenario);
+        if (scenarioName === "Actual Trade") {
+          scenarioGroup = "Actual";
+        }
 
         const trailingStopPct = trade.scenario.trailingStopPct
           ? (trade.scenario.trailingStopPct * 100).toFixed(2) + "%"
@@ -262,14 +320,18 @@ async function main() {
           : "N/A";
 
         const exitPrice = trade.exitPrice?.toFixed(2) || "OPEN";
-        const resultPct = trade.pnlPct
+        const resultPct = trade.pnlPct !== null && trade.pnlPct !== undefined
           ? (trade.pnlPct * 100).toFixed(2) + "%"
           : "N/A";
-        const resultDollar = trade.pnlDollar?.toFixed(2) || "N/A";
-        const vsActualPct = trade.pnlVsActualPct
+        const resultDollar = trade.pnlDollar !== null && trade.pnlDollar !== undefined
+          ? trade.pnlDollar.toFixed(2)
+          : "N/A";
+        const vsActualPct = trade.pnlVsActualPct !== null && trade.pnlVsActualPct !== undefined
           ? (trade.pnlVsActualPct * 100).toFixed(2) + "%"
           : "N/A";
-        const vsActualDollar = trade.pnlVsActualDollar?.toFixed(2) || "N/A";
+        const vsActualDollar = trade.pnlVsActualDollar !== null && trade.pnlVsActualDollar !== undefined
+          ? trade.pnlVsActualDollar.toFixed(2)
+          : "N/A";
         const bars = trade.barsInTrade || "N/A";
         const days =
           trade.barsInTrade && trade.barsInTrade > 0
@@ -335,7 +397,7 @@ async function main() {
       const tradesFile = join(exportDir, `run-${runId}-scenario-trades.csv`);
       writeFileSync(tradesFile, tradesCSV);
       console.log(
-        `✓ Exported comprehensive trades CSV (${allTrades.length} rows): ${tradesFile}`
+        `✓ Exported comprehensive trades CSV (${processedTrades.length} rows: ${uniqueActualTrades.size} trades × ${numScenarios + 1} rows/trade): ${tradesFile}`
       );
     }
 
