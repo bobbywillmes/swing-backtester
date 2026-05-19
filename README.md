@@ -53,6 +53,12 @@ This project uses **version-based summaries** to track major milestone accomplis
   - Comprehensive flat CSV export with 30+ context columns
   - Ready for Excel pivot analysis by asset type and market regime
 
+- **`docs/PROJECT_SUMMARY_v3.md`** — Frozen snapshot of v3 (Phases 12-13, May 19 2026)
+  - Fixed critical multi-buy bug: weighted-average entry pricing for double-downs and triple-downs
+  - All 162 trades now use correct weighted entry prices (141 single-entry, 12 double-down, 9 triple-down+)
+  - OrderRole tracking (OPEN/ADD/CLOSE) for position construction visibility
+  - "Entry Type" column in exports (Single Entry / Double-Down / Add(N))
+
 **For future sessions**: 
 - Start with current **README.md** for quick orientation
 - Reference **docs/PROJECT_SUMMARY_v{current}.md** for what was accomplished this version
@@ -185,7 +191,7 @@ swing-backtester/
 
 ## Build Status
 
-All phases complete (v1 & v2). See [ARCHITECTURE.md](ARCHITECTURE.md) for full specifications.
+All phases complete (v1, v2, & v3). See [ARCHITECTURE.md](ARCHITECTURE.md) for full specifications.
 
 ### v1 (Complete)
 
@@ -227,6 +233,21 @@ All phases complete (v1 & v2). See [ARCHITECTURE.md](ARCHITECTURE.md) for full s
 ### Phase 11 ✓ Comprehensive Export
 - Flat CSV with 30+ context columns (trade identity, scenario config, regime context, running high, vs actual)
 - Excel pivot-ready format
+
+### v3 (Complete)
+
+### Phase 12 ✓ Schema Migration
+- Added `OrderRole` enum (OPEN, ADD, CLOSE) to track position construction
+- Added `orderRole` field to ActualOrder for order-level role tracking
+- Added `addCount` field to ActualTrade to track multi-buy depth (0=single, 1=double-down, 2+=triple-down+)
+
+### Phase 13 ✓ Weighted Entry Benchmark Fix
+- Rewrote trade pairer with stateful position tracking
+- All BUY orders for a position now linked chronologically
+- Compute weighted-average entry price: Σ(price × qty) / Σqty
+- Fixed bug where multi-buy trades used only last BUY price
+- Added "Entry Type" column to CSV exports (Single Entry / Double-Down / Add(N))
+- Validation: 162 trades re-analyzed with correct entry prices (141 single, 12 double, 9 triple+)
 
 ## Data Integrity & Validation (Post-v2)
 
@@ -324,7 +345,7 @@ npm run cleanup-trades                                           # Reset trade d
 
 ## Scope
 
-**In Scope (v1 & v2):**
+**In Scope (v1, v2, & v3):**
 - Historical swing trade analysis with trailing stop simulation
 - Bar-by-bar backtest engine with priority-based exit logic
 - Asset-type-scoped exit scenarios (ETF vs Stock parameters)
@@ -332,21 +353,24 @@ npm run cleanup-trades                                           # Reset trade d
 - Scenario ranking and comparative metrics
 - Comprehensive flat CSV export for Excel analysis
 - Regime-aware result segmentation (pivot by asset type & market regime)
+- Multi-buy position handling with weighted-average entry pricing (v3)
+- Position construction tracking (OPEN/ADD/CLOSE order roles)
 
-**Out of Scope (v2):**
+**Out of Scope (v3):**
 - Live trading system
 - Live broker connection
 - Web UI (CLI + Excel exports)
-- Multi-add / pyramid trading
 - Intraday entry signal generation
 - Options or derivatives
-- Risk metrics (Sharpe, Sortino, drawdown) — deferred to v3
+- Risk metrics (Sharpe, Sortino, drawdown) — deferred to v4
 
-## Future Enhancements
+## Future Enhancements (v4+)
 
+- Risk metrics (Sharpe, Sortino, max drawdown analysis)
+- Performance attribution (which scenarios beat actual by ticker, by regime)
+- Batch scenario optimization (grid search parameter tuning)
 - Web dashboard for interactive result visualization
 - Real-time backtest progress monitoring
 - Custom exit strategy builder UI
-- Performance attribution (which scenarios beat actual by ticker)
-- Risk metrics (Sharpe, Sortino, drawdown analysis)
-- Batch scenario optimization
+- Live market regime updates (real-time SPY ATR)
+- Paper trading automation (auto-place orders based on best scenarios)
