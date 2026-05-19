@@ -12,7 +12,7 @@
 
 **Answer**: Yes. Trail 1% strategy captured **26.15% more upside** on this dataset.
 
-**Status**: ✅ v2 Complete (Phases 7-11, May 18 2026). Ready for v3 enhancements.
+**Status**: ✅ v3 Complete (Phases 12-13, May 19 2026). Weighted entry benchmark fixed for multi-buy positions.
 
 ---
 
@@ -204,11 +204,11 @@ npm run remove-duplicate-scenarios  # Deactivate any duplicates found
   - "Target unlocks trail" feature (targetIsHardExit = false)
 - **Status**: Validated end-to-end, ready for analysis
 
-### v3 (Future)
-- Risk metrics (Sharpe, Sortino, drawdown)
-- Performance attribution by ticker/regime
-- Custom scenario builder UI (optional)
-- Batch scenario optimization
+### v3 (Complete)
+- **Location**: `docs/PROJECT_SUMMARY_v3.md` (frozen, May 19 2026)
+- **Phases**: 12-13 complete (Weighted Entry Benchmark Fix)
+- **Key Fix**: Multi-buy positions (double-downs, triple-downs) now use weighted-average entry price instead of last-buy price
+- **Status**: Validated end-to-end, ready for analysis
 
 ---
 
@@ -232,7 +232,7 @@ Use this as sanity check if you run new backtests.
 3. Identify top scenarios per asset type + regime combination
 4. Document findings in analysis report
 
-### v3 Potential (When Needed)
+### v4 Potential (When Needed)
 - **Risk metrics**: Sharpe ratio, Sortino ratio, max drawdown
 - **Attribution**: Which scenarios beat actual per ticker, per regime
 - **Optimization**: Batch test scenario parameters (grid search)
@@ -305,7 +305,7 @@ Future sessions should preserve:
 
 **GitHub**: https://github.com/bobbywillmes/swing-backtester
 
-**Current version**: v2 (Phases 7-11 complete, May 18 2026)
+**Current version**: v3 (Phases 12-13 complete, May 19 2026)
 
 **Database**: PostgreSQL 16 on port 5433 (Docker)
 
@@ -323,5 +323,5 @@ Future sessions should preserve:
 
 ---
 
-**Last Updated**: May 18 2026, v2 complete  
-**Next Review**: When v3 development begins (or during v2 analysis)
+**Last Updated**: May 19 2026, v3 complete (weighted entry benchmark fix)  
+**Next Review**: When v4 development begins (risk metrics, web UI, or additional analysis workflows)
