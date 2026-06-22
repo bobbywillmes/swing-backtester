@@ -73,9 +73,15 @@ This project uses **version-based summaries** to track major milestone accomplis
   - Rankings export exact comparable-trade counts and realized comparison metrics
   - Pure narrative-ready metrics support future Run Overview and Scenario Explorer work
 
+- **`docs/PROJECT_SUMMARY_v6.md`** — Active v6 Run Overview dashboard milestone
+  - Read-only Express API for run metadata, scenarios, and overview data
+  - React/Vite/Mantine app for the first dashboard view
+  - Run and scenario selectors, asset filter, narrative summary, cumulative profit chart, contribution charts, and scenario table
+  - Browser consumes v5 API values and does not recalculate financial metrics
+
 **For future sessions**: 
 - Start with current **README.md** for quick orientation
-- Reference **docs/PROJECT_SUMMARY_v5.md** for active v5 work
+- Reference **docs/PROJECT_SUMMARY_v6.md** for active v6 work
 - Reference **AGENTS.md** for current coding-agent guidance
 - Check **ARCHITECTURE.md** for system design details
 
@@ -193,6 +199,8 @@ swing-backtester/
     run-backtest.ts          # CLI: execute backtest
     print-results.ts         # CLI: display results in console
     export-results.ts        # CLI: export CSVs for Excel analysis
+  apps/
+    web/                     # Vite React/Mantine Run Overview dashboard
     list-runs.ts             # CLI: list all backtest runs
     cleanup-trades.ts        # CLI: reset trade data
   docker-compose.yml
@@ -354,6 +362,9 @@ All scripts are available via npm run:
 # Data Setup (v1 & v2)
 npm test                                                          # Run TypeScript unit tests
 npm run build                                                     # TypeScript strict build
+npm run api                                                       # Start read-only Express API
+npm run web:dev                                                   # Start Vite dashboard dev server
+npm run web:build                                                 # Build dashboard
 npm run seed                                                      # Seed/repair trusted security metadata
 npm run validate-security-integrity                               # Validate stored securities against catalog
 npm run validate-security-integrity -- --runId 28                 # Validate run scope conflicts
@@ -399,13 +410,18 @@ npm run cleanup-trades                                           # Reset trade d
 - Position construction tracking (OPEN/ADD/CLOSE order roles)
 - Actual trade benchmark rows for head-to-head scenario comparison (v4)
 
-**Out of Scope (v5):**
+**Out of Scope (v6):**
 - Live trading system
 - Live broker connection
-- Web UI (CLI + Excel exports)
 - Intraday entry signal generation
 - Options or derivatives
-- Express API, React dashboard, replay mode, and live progress system
+- Individual trade replay
+- Candlestick charts and TradingView Lightweight Charts
+- Backtest execution from the browser
+- Live progress streaming
+- Scenario creation/editing
+- Authentication and deployment infrastructure
+- Mark-to-market open-trade valuation
 
 ## Future Enhancements (v6+)
 

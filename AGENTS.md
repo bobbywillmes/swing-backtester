@@ -4,7 +4,7 @@ Use this file as the active project guidance for coding agents.
 
 ## Project Status
 
-Current milestone: v5 analysis foundation.
+Current milestone: v6 Run Overview dashboard.
 
 Completed historical summaries are frozen in:
 
@@ -17,6 +17,10 @@ The active v5 summary is:
 
 - `docs/PROJECT_SUMMARY_v5.md`
 
+The active v6 summary is:
+
+- `docs/PROJECT_SUMMARY_v6.md`
+
 Do not rewrite frozen summaries to make newer behavior appear historical.
 
 ## Scope
@@ -25,13 +29,17 @@ This project is a TypeScript CLI backtester for swing-trade exit strategy
 research. It compares simulated exits against actual E*TRADE trade history
 using 5-minute OHLC bars.
 
-In v5, do not build:
+In v6, do not build:
 
-- Express API
-- React frontend
-- TradingView chart
-- replay mode
-- live progress system
+- individual trade replay
+- candlestick charts
+- TradingView Lightweight Charts
+- backtest execution from the browser
+- live progress streaming
+- scenario creation/editing
+- authentication
+- deployment infrastructure
+- mark-to-market open-trade valuation
 
 Those belong in later branches.
 
@@ -104,11 +112,26 @@ The v4 Actual Trade row is presentation-only:
 
 The synthetic row is created by export helpers, not by database records.
 
+## API And Web Semantics
+
+The read-only Express API lives in `src/api` and overview orchestration lives in
+`src/services/run-overview.service.ts`.
+
+The React app lives in `apps/web`.
+
+The web app must consume API-returned values. Do not recreate financial metric
+calculations in browser components. Browser logic may format, select, sort, and
+render values, but comparable-trade populations, realized uplift, contribution
+concentration, and cumulative profit data should come from the API.
+
 ## Commands
 
 ```bash
 npm test
 npm run build
+npm run api
+npm run web:dev
+npm run web:build
 npm run seed
 npm run validate-security-integrity
 npm run validate-security-integrity -- --runId <runId>
