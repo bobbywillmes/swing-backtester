@@ -4,7 +4,7 @@ Use this file as the active project guidance for coding agents.
 
 ## Project Status
 
-Current milestone: v6 Run Overview dashboard.
+Current milestone: v7 Scenario Explorer.
 
 Completed historical summaries are frozen in:
 
@@ -21,6 +21,10 @@ The active v6 summary is:
 
 - `docs/PROJECT_SUMMARY_v6.md`
 
+The active v7 summary is:
+
+- `docs/PROJECT_SUMMARY_v7.md`
+
 Do not rewrite frozen summaries to make newer behavior appear historical.
 
 ## Scope
@@ -29,7 +33,7 @@ This project is a TypeScript CLI backtester for swing-trade exit strategy
 research. It compares simulated exits against actual E*TRADE trade history
 using 5-minute OHLC bars.
 
-In v6, do not build:
+In v7, do not build:
 
 - individual trade replay
 - candlestick charts

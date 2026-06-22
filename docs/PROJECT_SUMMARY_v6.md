@@ -1,7 +1,7 @@
 # Swing Trade Backtester - Project Summary v6
 
 **Started**: June 22 2026  
-**Status**: In Progress  
+**Status**: Complete  
 **Builds on**: v5 (docs/PROJECT_SUMMARY_v5.md)
 
 > First UI milestone: a narrow read-only API and Run Overview dashboard that

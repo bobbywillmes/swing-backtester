@@ -11,7 +11,7 @@ Uses actual E*TRADE order history and 5-minute OHLC candles from Massive.com to 
 ## Getting Started
 
 ### Prerequisites
-- Node.js 18+
+- Node.js 20.19+ or 22.12+
 - Docker & Docker Compose
 - Massive.com API key (Stocks Starter subscription or higher)
 
@@ -79,9 +79,15 @@ This project uses **version-based summaries** to track major milestone accomplis
   - Run and scenario selectors, asset filter, narrative summary, cumulative profit chart, contribution charts, and scenario table
   - Browser consumes v5 API values and does not recalculate financial metrics
 
+- **`docs/PROJECT_SUMMARY_v7.md`** — Active v7 Scenario Explorer milestone
+  - Read-only scenario explorer API for one run/scenario pair
+  - Durable dashboard routes with React Router
+  - Trade-level filters, sortable comparison table, and detail drawer
+  - Browser displays returned trade metrics and does not recreate financial calculations
+
 **For future sessions**: 
 - Start with current **README.md** for quick orientation
-- Reference **docs/PROJECT_SUMMARY_v6.md** for active v6 work
+- Reference **docs/PROJECT_SUMMARY_v7.md** for active v7 work
 - Reference **AGENTS.md** for current coding-agent guidance
 - Check **ARCHITECTURE.md** for system design details
 
@@ -214,7 +220,7 @@ swing-backtester/
 
 ## Build Status
 
-v1-v4 are complete. v5 analysis-foundation work is active. See [ARCHITECTURE.md](ARCHITECTURE.md) for original system specifications and [docs/PROJECT_SUMMARY_v5.md](docs/PROJECT_SUMMARY_v5.md) for active semantics.
+v1-v6 are complete. v7 Scenario Explorer work is active. See [ARCHITECTURE.md](ARCHITECTURE.md) for original system specifications and [docs/PROJECT_SUMMARY_v7.md](docs/PROJECT_SUMMARY_v7.md) for active semantics.
 
 ### v1 (Complete)
 
