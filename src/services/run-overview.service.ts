@@ -213,7 +213,7 @@ async function getRunTradeRecords(runId: number): Promise<RunTradeRecord[]> {
   });
 }
 
-async function getApiIntegrityStatus(
+export async function getApiIntegrityStatus(
   runId: number
 ): Promise<ApiIntegrityStatus> {
   const securities = await prisma.security.findMany({

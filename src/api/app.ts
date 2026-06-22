@@ -6,6 +6,11 @@ import {
   getApiRunScenarios,
   listApiBacktestRuns,
 } from "../services/run-overview.service.js";
+import {
+  getApiScenarioExplorer,
+  getApiScenarioTradeDetail,
+  getApiScenarioTrades,
+} from "../services/scenario-explorer.service.js";
 import { AssetTypeFilter } from "./types.js";
 
 export function createApiApp() {
@@ -23,7 +28,7 @@ export function createApiApp() {
   }));
 
   app.get("/api/backtest-runs/:runId", asyncHandler(async (req, res) => {
-    res.json({ run: await getApiBacktestRun(parseRunIdParam(req.params.runId)) });
+    res.json({ run: await getApiBacktestRun(parseIdParam(req.params.runId, "run ID")) });
   }));
 
   app.get(
@@ -31,10 +36,10 @@ export function createApiApp() {
     asyncHandler(async (req, res) => {
       res.json(
         await getApiRunOverview({
-          runId: parseRunIdParam(req.params.runId),
+          runId: parseIdParam(req.params.runId, "run ID"),
           scenarioId:
             typeof req.query.scenarioId === "string"
-              ? parseRunIdParam(req.query.scenarioId)
+              ? parseIdParam(req.query.scenarioId, "scenario ID")
               : undefined,
           assetType: parseAssetType(req.query.assetType),
         })
@@ -47,9 +52,49 @@ export function createApiApp() {
     asyncHandler(async (req, res) => {
       res.json({
         scenarios: await getApiRunScenarios(
-          parseRunIdParam(req.params.runId),
+          parseIdParam(req.params.runId, "run ID"),
           parseAssetType(req.query.assetType)
         ),
+      });
+    })
+  );
+
+  app.get(
+    "/api/backtest-runs/:runId/scenarios/:scenarioId",
+    asyncHandler(async (req, res) => {
+      res.json(
+        await getApiScenarioExplorer({
+          runId: parseIdParam(req.params.runId, "run ID"),
+          scenarioId: parseIdParam(req.params.scenarioId, "scenario ID"),
+        })
+      );
+    })
+  );
+
+  app.get(
+    "/api/backtest-runs/:runId/scenarios/:scenarioId/trades",
+    asyncHandler(async (req, res) => {
+      res.json(
+        await getApiScenarioTrades({
+          runId: parseIdParam(req.params.runId, "run ID"),
+          scenarioId: parseIdParam(req.params.scenarioId, "scenario ID"),
+        })
+      );
+    })
+  );
+
+  app.get(
+    "/api/backtest-runs/:runId/scenarios/:scenarioId/trades/:backtestTradeId",
+    asyncHandler(async (req, res) => {
+      res.json({
+        trade: await getApiScenarioTradeDetail({
+          runId: parseIdParam(req.params.runId, "run ID"),
+          scenarioId: parseIdParam(req.params.scenarioId, "scenario ID"),
+          backtestTradeId: parseIdParam(
+            req.params.backtestTradeId,
+            "backtest trade ID"
+          ),
+        }),
       });
     })
   );
@@ -62,7 +107,11 @@ export function createApiApp() {
       _next: NextFunction
     ) => {
       const message = error instanceof Error ? error.message : String(error);
-      const status = message.includes("No ") ? 404 : 500;
+      const status = message.startsWith("Invalid ")
+        ? 400
+        : message.includes("No ")
+          ? 404
+          : 500;
       res.status(status).json({ error: message });
     }
   );
@@ -78,18 +127,21 @@ function asyncHandler(
   };
 }
 
-function parseRunIdParam(value: string | string[] | undefined): number {
+function parseIdParam(
+  value: string | string[] | undefined,
+  label: string
+): number {
   if (Array.isArray(value)) {
-    throw new Error("Invalid run ID");
+    throw new Error(`Invalid ${label}`);
   }
 
-  const runId = value ? parseInt(value, 10) : NaN;
+  const parsedValue = value ? parseInt(value, 10) : NaN;
 
-  if (isNaN(runId)) {
-    throw new Error("Invalid run ID");
+  if (isNaN(parsedValue)) {
+    throw new Error(`Invalid ${label}`);
   }
 
-  return runId;
+  return parsedValue;
 }
 
 function parseAssetType(value: unknown): AssetTypeFilter {
