@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { AddressInfo } from "node:net";
 import { createApiApp } from "../src/api/app.js";
-import { RunOverview } from "../src/api/types.js";
+import { ApiRunOverview } from "../src/api/types.js";
 
 test("GET /api/backtest-runs/:runId/overview returns v5 metric semantics", async (t) => {
   const server = createServer(createApiApp());
@@ -23,7 +23,7 @@ test("GET /api/backtest-runs/:runId/overview returns v5 metric semantics", async
       return;
     }
 
-    const overview = (await response.json()) as RunOverview;
+    const overview = (await response.json()) as ApiRunOverview;
 
     assert.equal(response.status, 200);
     assert.equal(overview.run.id, 29);
