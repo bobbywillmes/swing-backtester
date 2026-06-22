@@ -120,6 +120,28 @@ body {
   margin-bottom: 14px;
 }
 
+.compactPanel {
+  min-height: 0;
+}
+
+.clickableRow {
+  cursor: pointer;
+}
+
+.clickableRow:hover td {
+  background: #edf7f5;
+}
+
+.detailItem {
+  border-bottom: 1px solid #eef1f4;
+  min-width: 0;
+  padding: 8px 0;
+}
+
+.detailItem p:last-child {
+  overflow-wrap: anywhere;
+}
+
 .recharts-wrapper {
   font-size: 12px;
 }

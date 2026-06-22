@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Route, Routes, useNavigate } from "react-router-dom";
 import {
   Alert,
   Badge,
@@ -43,6 +44,7 @@ import {
   formatNumber,
   formatPercent,
 } from "./format";
+import { ScenarioExplorerPage } from "./ScenarioExplorerPage";
 
 const ASSET_OPTIONS: { label: string; value: AssetTypeFilter }[] = [
   { label: "All", value: "ALL" },
@@ -51,6 +53,19 @@ const ASSET_OPTIONS: { label: string; value: AssetTypeFilter }[] = [
 ];
 
 export function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<RunOverviewPage />} />
+      <Route
+        path="/runs/:runId/scenarios/:scenarioId"
+        element={<ScenarioExplorerPage />}
+      />
+    </Routes>
+  );
+}
+
+function RunOverviewPage() {
+  const navigate = useNavigate();
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [runId, setRunId] = useState<number | null>(null);
   const [scenarioId, setScenarioId] = useState<number | null>(null);
@@ -377,7 +392,15 @@ export function App() {
                   </Table.Thead>
                   <Table.Tbody>
                     {overview.scenarios.map((scenario) => (
-                      <Table.Tr key={scenario.scenarioId}>
+                      <Table.Tr
+                        key={scenario.scenarioId}
+                        className="clickableRow"
+                        onClick={() =>
+                          navigate(
+                            `/runs/${overview.run.id}/scenarios/${scenario.scenarioId}`
+                          )
+                        }
+                      >
                         <Table.Td>{scenario.scenarioName}</Table.Td>
                         <Table.Td>{scenario.assetTypeScope}</Table.Td>
                         <Table.Td>

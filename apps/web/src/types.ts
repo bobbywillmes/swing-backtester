@@ -95,3 +95,106 @@ export interface RunOverview {
   tickerContributions: TickerContribution[];
   cumulativeProfit: CumulativeProfitPoint[];
 }
+
+export type ScenarioGroup =
+  | "Trail Only"
+  | "Target Unlocks Trail"
+  | "Fixed Target";
+
+export type ComparisonStatus =
+  | "IMPROVED"
+  | "WORSE"
+  | "UNCHANGED"
+  | "OPEN_SIMULATION"
+  | "NOT_COMPARABLE";
+
+export interface ScenarioConfig {
+  scenarioId: number;
+  scenarioName: string;
+  scenarioGroup: ScenarioGroup;
+  description: string | null;
+  assetTypeScope: AssetTypeFilter;
+  targetPct: number | null;
+  targetIsHardExit: boolean;
+  stopPct: number | null;
+  trailingStopPct: number | null;
+  trailActivateAfterPct: number | null;
+  maxHoldBars: number | null;
+  active: boolean;
+}
+
+export interface ScenarioExplorerFilters {
+  assetTypes: AssetTypeFilter[];
+  tickers: string[];
+  exitReasons: string[];
+  regimes: string[];
+  entryTypes: string[];
+  comparisonStatuses: ComparisonStatus[];
+}
+
+export interface ScenarioExplorer {
+  run: RunSummary;
+  integrity: IntegrityStatus;
+  scenario: ScenarioConfig;
+  metrics: NarrativeScenarioMetrics;
+  availableFilters: ScenarioExplorerFilters;
+}
+
+export interface ScenarioTradeSummary {
+  backtestTradeId: number;
+  actualTradeId: number;
+  orderId: string | null;
+  ticker: string;
+  assetType: "ETF" | "STOCK";
+  entryTs: string;
+  entryPrice: number;
+  shares: number;
+  capitalDeployed: number;
+  entryType: string;
+  exitTs: string | null;
+  exitPrice: number | null;
+  exitReason: string | null;
+  pnlPct: number | null;
+  pnlDollar: number | null;
+  pnlVsActualPct: number | null;
+  pnlVsActualDollar: number | null;
+  barsInTrade: number | null;
+  daysInTrade: number | null;
+  actualExitTs: string | null;
+  actualExitPrice: number | null;
+  actualExitReason: string | null;
+  actualPnlPct: number | null;
+  actualPnlDollar: number | null;
+  actualBarsHeld: number | null;
+  comparisonStatus: ComparisonStatus;
+  regimeAtEntry: string | null;
+}
+
+export interface ScenarioTradesResponse {
+  run: RunSummary;
+  scenario: ScenarioConfig;
+  metrics: NarrativeScenarioMetrics;
+  trades: ScenarioTradeSummary[];
+}
+
+export interface ActualOrderSummary {
+  id: number;
+  etradeOrderId: number | null;
+  side: string;
+  executedAt: string;
+  quantity: number;
+  priceExecuted: number;
+  priceType: string;
+  term: string | null;
+  limitPrice: number | null;
+  orderRole: string | null;
+}
+
+export interface ScenarioTradeDetail extends ScenarioTradeSummary {
+  scenario: ScenarioConfig;
+  runningHighPrice: number | null;
+  runningHighPct: number | null;
+  trailActivatedAt: string | null;
+  spyAtrPctAtEntry: number | null;
+  orders: ActualOrderSummary[];
+}
