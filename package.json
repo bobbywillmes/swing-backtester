@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch",
+    "api": "tsx src/api/server.ts",
+    "api:dev": "tsx watch src/api/server.ts",
     "build": "tsc",
     "test": "node --import tsx --test \"tests/**/*.test.ts\"",
     "seed": "tsx prisma/seed.ts",
@@ -25,14 +27,28 @@
     "validate-security-integrity": "tsx scripts/validate-security-integrity.ts"
   },
   "dependencies": {
+    "@mantine/core": "^9.3.2",
+    "@mantine/hooks": "^9.3.2",
     "@prisma/client": "^5.10.2",
+    "@vitejs/plugin-react": "^6.0.2",
     "axios": "^1.6.2",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "lucide-react": "^1.21.0",
     "papaparse": "^5.4.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "recharts": "^3.8.1",
+    "vite": "^8.0.16",
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
     "@types/node": "^20.10.6",
     "@types/papaparse": "^5.3.14",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
     "prisma": "^5.10.2",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3"
