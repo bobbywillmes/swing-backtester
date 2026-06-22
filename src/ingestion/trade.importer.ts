@@ -12,6 +12,7 @@ import {
   ImportStats,
   ImportError,
 } from "../types/trade.types.js";
+import { getKnownSecurity } from "../data/security-catalog.js";
 
 export async function importEtradeCsv(
   csvContent: string
@@ -22,32 +23,70 @@ export async function importEtradeCsv(
 
   try {
     const rows = await parseEtradeCsv(csvContent);
+    const parsedOrders: ParsedOrder[] = [];
 
     for (let i = 0; i < rows.length; i++) {
-      const rowNumber = i + 2; // +2 because CSV header is row 1, data starts at row 2
+      const rowNumber = i + 2;
       const row = rows[i] as RawEtradeRow;
 
       try {
-        const order = parseEtradeRow(row);
-
-        // Ensure security exists (create if missing)
-        const existingSecurity = await prisma.security.findUnique({
-          where: { symbol: order.ticker },
+        parsedOrders.push(parseEtradeRow(row));
+      } catch (error) {
+        errors.push({
+          rowNumber,
+          reason:
+            error instanceof Error
+              ? error.message
+              : "Unknown parsing error",
+          data: row,
         });
+      }
+    }
 
-        if (!existingSecurity) {
-          await prisma.security.create({
-            data: {
-              symbol: order.ticker,
-              name: order.ticker, // Placeholder; user can update later
-              assetType: "STOCK", // Default to STOCK; can be ETF/other
-            },
-          });
-          console.log(`  ℹ Auto-created security: ${order.ticker}`);
+    if (errors.length > 0) {
+      const durationMs = Date.now() - startTime;
+
+      return {
+        totalRows: rows.length,
+        validOrders: 0,
+        skippedRows: rows.length,
+        errors,
+        durationMs,
+      };
+    }
+
+    const unknownSymbols = [
+      ...new Set(
+        parsedOrders
+          .map((order) => order.ticker)
+          .filter((ticker) => !getKnownSecurity(ticker))
+      ),
+    ].sort();
+
+    if (unknownSymbols.length > 0) {
+      throw new Error(
+        `Security classification required for: ${unknownSymbols.join(", ")}. Add each symbol to SECURITY_CATALOG before importing.`
+      );
+    }
+
+    await prisma.$transaction(async (tx) => {
+      for (const order of parsedOrders) {
+        const security = getKnownSecurity(order.ticker);
+
+        if (!security) {
+          throw new Error(`Security classification required for: ${order.ticker}`);
         }
 
-        // Insert ActualOrder
-        await prisma.actualOrder.create({
+        await tx.security.upsert({
+          where: { symbol: security.symbol },
+          update: {
+            name: security.name,
+            assetType: security.assetType,
+          },
+          create: security,
+        });
+
+        await tx.actualOrder.create({
           data: {
             etradeOrderId: order.etradeOrderId,
             ticker: order.ticker,
@@ -63,17 +102,8 @@ export async function importEtradeCsv(
         });
 
         validOrders++;
-      } catch (error) {
-        errors.push({
-          rowNumber,
-          reason:
-            error instanceof Error
-              ? error.message
-              : "Unknown parsing error",
-          data: row,
-        });
       }
-    }
+    });
 
     const durationMs = Date.now() - startTime;
 

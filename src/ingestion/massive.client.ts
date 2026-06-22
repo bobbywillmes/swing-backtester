@@ -1,4 +1,4 @@
-import axios, { AxiosInstance } from "axios";
+import axios, { AxiosInstance, AxiosResponse } from "axios";
 import { getEnv } from "../config/env.js";
 import { MassiveResponse, MassiveAgg } from "../types/ohlc.types.js";
 
@@ -33,7 +33,8 @@ export class MassiveClient {
     );
 
     while (nextUrl) {
-      const response = await this.client.get<MassiveResponse>(nextUrl);
+      const response: AxiosResponse<MassiveResponse> =
+        await this.client.get<MassiveResponse>(nextUrl);
 
       if (response.data.status !== "OK") {
         throw new Error(
@@ -48,7 +49,7 @@ export class MassiveClient {
       // next_url is already a full URL with all params
       if (response.data.next_url) {
         // Extract path from full URL
-        const url = new URL(response.data.next_url);
+        const url: URL = new URL(response.data.next_url);
         nextUrl = url.pathname + url.search;
       } else {
         nextUrl = undefined;

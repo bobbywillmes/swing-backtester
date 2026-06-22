@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch",
     "build": "tsc",
+    "test": "node --import tsx --test \"tests/**/*.test.ts\"",
     "seed": "tsx prisma/seed.ts",
     "ingest-ohlc": "tsx scripts/ingest-ohlc.ts",
     "ingest-ohlc-bulk": "tsx scripts/ingest-ohlc-bulk.ts",

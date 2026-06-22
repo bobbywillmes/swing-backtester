@@ -1,6 +1,8 @@
 import Papa from "papaparse";
 
-export function parseEtradeCsv(csvContent: string): Record<string, string>[] {
+export function parseEtradeCsv(
+  csvContent: string
+): Promise<Record<string, string>[]> {
   return new Promise((resolve, reject) => {
     Papa.parse(csvContent, {
       header: true,
@@ -9,7 +11,7 @@ export function parseEtradeCsv(csvContent: string): Record<string, string>[] {
       complete: (results) => {
         resolve(results.data as Record<string, string>[]);
       },
-      error: (error) => {
+      error: (error: Error) => {
         reject(new Error(`CSV parse error: ${error.message}`));
       },
     });
