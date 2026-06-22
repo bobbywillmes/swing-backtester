@@ -5,10 +5,18 @@ import prisma from "../src/db/prisma.js";
 import { getBacktestRun, getMostRecentRun, getRunAllTrades } from "../src/services/results.service.js";
 import { calculateMetrics } from "../src/analysis/metrics.calculator.js";
 import { rankScenarios } from "../src/analysis/scenario.ranker.js";
+import { calculateNarrativeScenarioMetrics } from "../src/analysis/narrative-metrics.js";
+import { ScenarioAnalysisTrade } from "../src/types/analysis.types.js";
+import {
+  buildActualTradeBenchmarkRow,
+  ExportTradeRow,
+  isActualTradeBenchmarkRow,
+} from "../src/exporting/results-export.js";
 
 interface Args {
   runId: number;
 }
+
 
 function parseArgs(): Args {
   const args = process.argv.slice(2);
@@ -102,6 +110,33 @@ function formatDateTimeForExcel(date: Date | null | undefined): string {
   return `${year}-${month_num}-${day_num} ${String(hours12).padStart(2, "0")}:${minutes}:${seconds} ${ampm} ${tz}`;
 }
 
+function toScenarioAnalysisTrade(trade: ExportTradeRow): ScenarioAnalysisTrade {
+  const orderId = trade.actualTrade.orders[0]?.etradeOrderId;
+
+  return {
+    actualTradeId: trade.actualTradeId,
+    orderId: orderId !== undefined && orderId !== null ? String(orderId) : null,
+    ticker: trade.actualTrade.ticker,
+    entryTs: trade.actualTrade.entryTs,
+    exitReason:
+      trade.exitReason === "TARGET" ||
+      trade.exitReason === "STOP" ||
+      trade.exitReason === "TRAIL" ||
+      trade.exitReason === "TIME" ||
+      trade.exitReason === "OPEN"
+        ? trade.exitReason
+        : null,
+    pnlPct: trade.pnlPct,
+    pnlDollar: trade.pnlDollar,
+    pnlVsActualPct: trade.pnlVsActualPct,
+    pnlVsActualDollar: trade.pnlVsActualDollar,
+    barsInTrade: trade.barsInTrade,
+    actualExitTs: trade.actualTrade.actualExitTs,
+    actualPnlPct: trade.actualTrade.actualPnlPct,
+    actualPnlDollar: trade.actualTrade.actualPnlDollar,
+  };
+}
+
 async function main() {
   const args = parseArgs();
 
@@ -128,12 +163,40 @@ async function main() {
     await mkdir(exportDir, { recursive: true });
 
     console.log(`\nExporting results for run ${runId}...`);
+    const allTrades = (await getRunAllTrades(runId)).map(
+      (trade): ExportTradeRow => ({
+        ...trade,
+        exitReason: trade.exitReason,
+        regimeAtEntry: trade.regimeAtEntry,
+        actualTrade: {
+          ...trade.actualTrade,
+          orders: trade.actualTrade.orders.map((order) => ({
+            etradeOrderId: order.etradeOrderId,
+          })),
+        },
+      })
+    );
+    const narrativeMetricsByScenario = new Map(
+      run.summaries.map((summary) => {
+        const scenarioTrades = allTrades
+          .filter((trade) => trade.scenarioId === summary.scenarioId)
+          .map(toScenarioAnalysisTrade);
+
+        return [
+          summary.scenarioId,
+          calculateNarrativeScenarioMetrics(scenarioTrades),
+        ];
+      })
+    );
 
     // 1. Export scenario summaries
-    const scenariosWithMetrics = run.summaries.map((summary) => ({
-      id: summary.scenarioId,
-      name: "",
-      metrics: calculateMetrics({
+    const scenariosWithMetrics = run.summaries.map((summary) => {
+      const narrativeMetrics = narrativeMetricsByScenario.get(summary.scenarioId);
+
+      return {
+        id: summary.scenarioId,
+        name: "",
+        metrics: calculateMetrics({
         totalTrades: summary.totalTrades,
         wins: summary.wins,
         losses: summary.losses,
@@ -150,8 +213,14 @@ async function main() {
         avgPnlVsActualPct: summary.avgPnlVsActualPct,
         totalPnlVsActualDollar: summary.totalPnlVsActualDollar,
         tradesImproved: summary.tradesImproved,
+        tradesWorse: summary.tradesWorse,
+        tradesUnchanged: narrativeMetrics?.unchangedTrades,
+        comparableTrades: narrativeMetrics?.comparableTrades,
+        openSimulations: narrativeMetrics?.openSimulations,
+        improvementRate: narrativeMetrics?.improvementRate,
       }),
-    }));
+      };
+    });
 
     // Get scenario names
     scenariosWithMetrics.forEach((s) => {
@@ -164,27 +233,65 @@ async function main() {
     const rankings = rankScenarios(scenariosWithMetrics);
 
     // Export rankings CSV
-    let rankingsCSV = `Rank,Scenario,Score,Trades,Wins,Losses,Open,Win Rate,Profit Factor,Expectancy,Avg PnL %,Best Trade %,Worst Trade %,vs Actual %,Improved Trades,Hold Time (bars),Hold Time (days)\n`;
+    let rankingsCSV = `Rank,Scenario,Score,Total Trades,Comparable Trades,Open Simulations,Wins,Losses,Win Rate,Profit Factor,Expectancy,Avg PnL %,Best Trade %,Worst Trade %,Improvement Rate,Improved Trades,Worse Trades,Unchanged Trades,Actual Comparable Profit,Simulated Realized Profit,Incremental Realized Profit,Realized Uplift %,Median Improvement $,Median Improvement %,Median Hold Days,Top 5 Contribution %,Top 10 Contribution %,Hold Time (bars),Hold Time (days)\n`;
 
     for (const ranking of rankings) {
+      const narrativeMetrics = narrativeMetricsByScenario.get(ranking.scenarioId);
+
       rankingsCSV += [
         ranking.rank,
         escapeCSV(ranking.scenarioName),
         (ranking.score * 100).toFixed(1),
         ranking.metrics.totalTrades,
+        ranking.metrics.comparableTrades,
+        ranking.metrics.openSimulations,
         ranking.metrics.wins,
         ranking.metrics.losses,
-        ranking.metrics.openTrades,
         (ranking.metrics.winRate * 100).toFixed(2),
         ranking.metrics.profitFactor.toFixed(2),
         (ranking.metrics.expectancy * 100).toFixed(2),
         (ranking.metrics.avgPnlPct * 100).toFixed(2),
         (ranking.metrics.bestTradePct * 100).toFixed(2),
         (ranking.metrics.worstTradePct * 100).toFixed(2),
-        (ranking.metrics.avgPnlVsActualPct * 100).toFixed(2),
-        ranking.metrics.improvementRate > 0
-          ? ranking.metrics.totalTrades * ranking.metrics.improvementRate
-          : 0,
+        ranking.metrics.improvementRate !== null
+          ? (ranking.metrics.improvementRate * 100).toFixed(2)
+          : "",
+        ranking.metrics.tradesImproved,
+        ranking.metrics.tradesWorse,
+        ranking.metrics.tradesUnchanged,
+        narrativeMetrics
+          ? narrativeMetrics.actualComparablePnlDollar.toFixed(2)
+          : "",
+        narrativeMetrics
+          ? narrativeMetrics.simulatedRealizedPnlDollar.toFixed(2)
+          : "",
+        narrativeMetrics
+          ? narrativeMetrics.incrementalRealizedPnlDollar.toFixed(2)
+          : "",
+        narrativeMetrics?.realizedUpliftPct !== null &&
+        narrativeMetrics?.realizedUpliftPct !== undefined
+          ? (narrativeMetrics.realizedUpliftPct * 100).toFixed(2)
+          : "",
+        narrativeMetrics?.medianDollarImprovement !== null &&
+        narrativeMetrics?.medianDollarImprovement !== undefined
+          ? narrativeMetrics.medianDollarImprovement.toFixed(2)
+          : "",
+        narrativeMetrics?.medianPctImprovement !== null &&
+        narrativeMetrics?.medianPctImprovement !== undefined
+          ? (narrativeMetrics.medianPctImprovement * 100).toFixed(2)
+          : "",
+        narrativeMetrics?.medianHoldingDays !== null &&
+        narrativeMetrics?.medianHoldingDays !== undefined
+          ? narrativeMetrics.medianHoldingDays.toFixed(2)
+          : "",
+        narrativeMetrics?.topFiveContributionPct !== null &&
+        narrativeMetrics?.topFiveContributionPct !== undefined
+          ? (narrativeMetrics.topFiveContributionPct * 100).toFixed(2)
+          : "",
+        narrativeMetrics?.topTenContributionPct !== null &&
+        narrativeMetrics?.topTenContributionPct !== undefined
+          ? (narrativeMetrics.topTenContributionPct * 100).toFixed(2)
+          : "",
         ranking.metrics.avgBarsInTrade.toFixed(0),
         ranking.metrics.avgDaysInTrade.toFixed(2),
       ]
@@ -198,8 +305,6 @@ async function main() {
     console.log(`✓ Exported rankings: ${rankingsFile}`);
 
     // 2. Export all scenario trades
-    const allTrades = await getRunAllTrades(runId);
-
     console.log(`Debug: Retrieved ${allTrades.length} backtest trade records`);
 
     // Count unique actualTrade IDs
@@ -227,41 +332,11 @@ async function main() {
     }
 
     // Build ordered trades with synthetic rows first per actualTradeId
-    const orderedTrades = [];
+    const orderedTrades: ExportTradeRow[] = [];
     for (const [, trades] of tradesByActualId) {
       const firstTrade = trades[0];
 
-      // Create synthetic "Actual Trade" row from the first trade's actualTrade data
-      const actualTradeRow = {
-        id: -1, // synthetic marker
-        runId: firstTrade.runId,
-        actualTradeId: firstTrade.actualTradeId,
-        scenarioId: -1, // synthetic marker
-        exitTs: firstTrade.actualTrade.actualExitTs,
-        exitPrice: firstTrade.actualTrade.actualExitPrice,
-        exitReason: null,
-        pnlPct: firstTrade.actualTrade.actualPnlPct,
-        pnlDollar: firstTrade.actualTrade.actualPnlDollar,
-        pnlVsActualPct: 0,
-        pnlVsActualDollar: 0,
-        barsInTrade: firstTrade.actualTrade.actualBarsHeld,
-        runningHighPrice: null as number | null,
-        runningHighPct: null as number | null,
-        trailActivatedAt: null as Date | null,
-        regimeAtEntry: firstTrade.regimeAtEntry,
-        spyAtrPctAtEntry: firstTrade.spyAtrPctAtEntry,
-        actualTrade: firstTrade.actualTrade,
-        scenario: {
-          name: "Actual Trade",
-          targetPct: null,
-          targetIsHardExit: null,
-          stopPct: null,
-          trailingStopPct: null,
-          trailActivateAfterPct: null,
-          maxHoldBars: null,
-          assetTypeScope: null,
-        } as any,
-      } as any;
+      const actualTradeRow = buildActualTradeBenchmarkRow(firstTrade);
 
       orderedTrades.push(actualTradeRow);
       orderedTrades.push(...trades);
@@ -301,21 +376,30 @@ async function main() {
         }
 
         const scenarioName = trade.scenario.name;
+        const isActualTradeRow = isActualTradeBenchmarkRow(trade);
         let scenarioGroup = determineScenarioGroup(trade.scenario);
-        if (scenarioName === "Actual Trade") {
+        if (isActualTradeRow) {
           scenarioGroup = "Actual";
         }
 
-        const trailingStopPct = trade.scenario.trailingStopPct
+        const trailingStopPct = isActualTradeRow
+          ? ""
+          : trade.scenario.trailingStopPct
           ? (trade.scenario.trailingStopPct * 100).toFixed(2) + "%"
           : "N/A";
-        const trailActivateAfterPct = trade.scenario.trailActivateAfterPct
+        const trailActivateAfterPct = isActualTradeRow
+          ? ""
+          : trade.scenario.trailActivateAfterPct
           ? (trade.scenario.trailActivateAfterPct * 100).toFixed(2) + "%"
           : "N/A";
-        const targetPct = trade.scenario.targetPct
+        const targetPct = isActualTradeRow
+          ? ""
+          : trade.scenario.targetPct
           ? (trade.scenario.targetPct * 100).toFixed(2) + "%"
           : "N/A";
-        const stopPct = trade.scenario.stopPct
+        const stopPct = isActualTradeRow
+          ? ""
+          : trade.scenario.stopPct
           ? (trade.scenario.stopPct * 100).toFixed(2) + "%"
           : "N/A";
 
@@ -367,9 +451,13 @@ async function main() {
           trailingStopPct,
           trailActivateAfterPct,
           targetPct,
-          trade.scenario.targetIsHardExit !== false ? "Yes" : "No",
+          isActualTradeRow
+            ? ""
+            : trade.scenario.targetIsHardExit !== false
+              ? "Yes"
+              : "No",
           stopPct,
-          trade.scenario.maxHoldBars || "N/A",
+          isActualTradeRow ? "" : trade.scenario.maxHoldBars || "N/A",
           exitDateTime,
           exitPrice,
           trade.exitReason || "OPEN",

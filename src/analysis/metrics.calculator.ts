@@ -16,6 +16,11 @@ export interface MetricsSnapshot {
   avgDaysInTrade: number;
   avgPnlVsActualPct: number;
   totalPnlVsActualDollar: number;
+  comparableTrades: number;
+  openSimulations: number;
+  tradesImproved: number;
+  tradesWorse: number;
+  tradesUnchanged: number;
   improvementRate: number;
 }
 
@@ -36,6 +41,11 @@ export function calculateMetrics(data: {
   avgPnlVsActualPct: number;
   totalPnlVsActualDollar: number;
   tradesImproved: number;
+  tradesWorse?: number;
+  tradesUnchanged?: number;
+  comparableTrades?: number;
+  openSimulations?: number;
+  improvementRate?: number | null;
 }): MetricsSnapshot {
   const closedTrades = data.totalTrades - data.openTrades;
 
@@ -49,9 +59,9 @@ export function calculateMetrics(data: {
   // Expectancy: average profit per trade (if we kept trading)
   const expectancy = closedTrades > 0 ? data.totalPnlPct / closedTrades : 0;
 
-  // Improvement rate: % of trades that beat actual performance
+  const comparableTrades = data.comparableTrades ?? closedTrades;
   const improvementRate =
-    closedTrades > 0 ? data.tradesImproved / closedTrades : 0;
+    data.improvementRate ?? (comparableTrades > 0 ? data.tradesImproved / comparableTrades : 0);
 
   return {
     totalTrades: data.totalTrades,
@@ -71,6 +81,11 @@ export function calculateMetrics(data: {
     avgDaysInTrade: data.avgDaysInTrade,
     avgPnlVsActualPct: data.avgPnlVsActualPct,
     totalPnlVsActualDollar: data.totalPnlVsActualDollar,
+    comparableTrades,
+    openSimulations: data.openSimulations ?? data.openTrades,
+    tradesImproved: data.tradesImproved,
+    tradesWorse: data.tradesWorse ?? 0,
+    tradesUnchanged: data.tradesUnchanged ?? 0,
     improvementRate,
   };
 }
