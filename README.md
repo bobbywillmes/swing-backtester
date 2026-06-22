@@ -66,9 +66,17 @@ This project uses **version-based summaries** to track major milestone accomplis
   - Fixed falsy-check bug: properly display 0.00% for zero P&L values
   - 2,268 total rows exported per run (was 2,106)
 
+- **`docs/PROJECT_SUMMARY_v5.md`** — Active v5 analysis-foundation milestone (June 22 2026)
+  - Centralized trusted security catalog used by seed and import
+  - Unknown symbols now require explicit classification
+  - Integrity validator detects metadata drift and historical run scope conflicts
+  - Rankings export exact comparable-trade counts and realized comparison metrics
+  - Pure narrative-ready metrics support future Run Overview and Scenario Explorer work
+
 **For future sessions**: 
 - Start with current **README.md** for quick orientation
-- Reference **docs/PROJECT_SUMMARY_v{current}.md** for what was accomplished this version
+- Reference **docs/PROJECT_SUMMARY_v5.md** for active v5 work
+- Reference **AGENTS.md** for current coding-agent guidance
 - Check **ARCHITECTURE.md** for system design details
 
 This approach preserves the "chapter" structure while allowing active development within a version.
@@ -150,7 +158,7 @@ swing-backtester/
   prisma/
     schema.prisma         # Complete data model
     migrations/           # Prisma migrations
-    seed.ts              # Initial securities seeding
+    seed.ts              # Idempotent security seed/repair
   src/
     config/
       env.ts             # Typed environment loader (Zod)
@@ -180,7 +188,7 @@ swing-backtester/
   scripts/
     ingest-ohlc.ts           # CLI: fetch OHLC candles for single ticker
     ingest-ohlc-bulk.ts      # CLI: fetch OHLC for multiple tickers
-    import-trades.ts         # CLI: load E*TRADE CSV
+    import-trades.ts         # CLI: load E*TRADE CSV with catalog validation
     create-scenarios.ts      # CLI: seed default exit scenarios
     run-backtest.ts          # CLI: execute backtest
     print-results.ts         # CLI: display results in console
@@ -198,7 +206,7 @@ swing-backtester/
 
 ## Build Status
 
-All phases complete (v1, v2, v3, & v4). See [ARCHITECTURE.md](ARCHITECTURE.md) for full specifications.
+v1-v4 are complete. v5 analysis-foundation work is active. See [ARCHITECTURE.md](ARCHITECTURE.md) for original system specifications and [docs/PROJECT_SUMMARY_v5.md](docs/PROJECT_SUMMARY_v5.md) for active semantics.
 
 ### v1 (Complete)
 
@@ -306,20 +314,28 @@ During v2 validation, several critical data issues were discovered and fixed:
 - Excel pivot tables confirm no aggregate duplicates across scenarios
 - Use run-23 results as the authoritative v2 analysis baseline
 
+### v5 Classification Baseline
+
+- **Run-28** revealed ETF classification and comparable-metric issues and is preserved as historical discovery data.
+- **Run-29** is the authoritative post-classification-fix baseline.
+- Run-29 validates with `npm run validate-security-integrity -- --runId 29`.
+- The detailed export contains 2,268 rows: 2,106 simulated rows plus 162 Actual Trade benchmark rows.
+- For `ETF: +1.0% Unlock -> Trail 0.5%`, Run-29 has 112 total trades, 107 comparable trades, 5 open simulations, 61 improved, 46 worse, and 105.24% realized uplift.
+
 ### Detection & Cleanup Scripts
 
 New utility scripts added for ongoing validation:
 - `scripts/find-duplicate-scenarios.ts` — Identifies scenarios by parameter fingerprint
 - `scripts/remove-duplicate-scenarios.ts` — Deactivates identified duplicates
-- Added to `npm` scripts and documented in CLAUDE.md
+- Added to `npm` scripts and documented in AGENTS.md
 
 ## Database
 
 **PostgreSQL 16** running in Docker on port 5433.
 
-Initial securities seeded:
-- **ETFs**: SPY, QQQ, DIA, IWM
-- **Stocks**: AAPL, AMZN, GOOG, META, MSFT
+Trusted securities are centralized in `src/data/security-catalog.ts` and repaired by `npm run seed`.
+- **ETFs**: DIA, IWM, QQQ, QQQM, RSP, SPY, VOO, VTV
+- **Stocks**: AAPL, AMZN, GOOG, META, MSFT, NVDA, TSLA
 
 ## Key Design Principles
 
@@ -336,6 +352,11 @@ All scripts are available via npm run:
 
 ```bash
 # Data Setup (v1 & v2)
+npm test                                                          # Run TypeScript unit tests
+npm run build                                                     # TypeScript strict build
+npm run seed                                                      # Seed/repair trusted security metadata
+npm run validate-security-integrity                               # Validate stored securities against catalog
+npm run validate-security-integrity -- --runId 28                 # Validate run scope conflicts
 npm run ingest-ohlc-bulk                                         # Fetch bulk OHLC (edit config in script)
 npm run ingest-ohlc -- --ticker SPY --from 2026-01-01 --to 2026-05-16  # Fetch single ticker
 npm run import-trades -- --file data/orders.csv                  # Import E*TRADE CSV
@@ -378,15 +399,15 @@ npm run cleanup-trades                                           # Reset trade d
 - Position construction tracking (OPEN/ADD/CLOSE order roles)
 - Actual trade benchmark rows for head-to-head scenario comparison (v4)
 
-**Out of Scope (v4):**
+**Out of Scope (v5):**
 - Live trading system
 - Live broker connection
 - Web UI (CLI + Excel exports)
 - Intraday entry signal generation
 - Options or derivatives
-- Risk metrics (Sharpe, Sortino, drawdown) — deferred to v5
+- Express API, React dashboard, replay mode, and live progress system
 
-## Future Enhancements (v5+)
+## Future Enhancements (v6+)
 
 - Risk metrics (Sharpe, Sortino, max drawdown analysis)
 - Performance attribution (which scenarios beat actual by ticker, by regime)
