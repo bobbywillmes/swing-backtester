@@ -313,13 +313,18 @@ async function main() {
       allTrades.map((t) => t.actualTrade.orders[0]?.etradeOrderId || "UNKNOWN")
     );
     const withoutOrderIds = allTrades.filter((t) => !t.actualTrade.orders[0]?.etradeOrderId).length;
-    const numScenarios = run.scenarios.length;
+    const simulatedRowsPerTrade =
+      uniqueActualTrades.size > 0 ? allTrades.length / uniqueActualTrades.size : 0;
+    const expectedRows = allTrades.length + uniqueActualTrades.size;
 
     console.log(`Debug: ${uniqueActualTrades.size} unique actual trades`);
     console.log(`Debug: ${uniqueOrderIds.size} unique order IDs`);
     console.log(`Debug: ${withoutOrderIds} trades without order IDs`);
-    console.log(`Debug: ${numScenarios} scenarios in this run`);
-    console.log(`Debug: Expected rows: (${numScenarios} scenarios + 1 actual) × ${uniqueActualTrades.size} trades = ${(numScenarios + 1) * uniqueActualTrades.size}`);
+    console.log(`Debug: ${run.scenarios.length} scenarios in this run`);
+    console.log(`Debug: ${allTrades.length} simulated scenario-trade rows`);
+    console.log(
+      `Debug: Expected rows: ${allTrades.length} simulated rows + ${uniqueActualTrades.size} actual rows = ${expectedRows}`
+    );
 
     // Group trades by actualTradeId, with synthetic "Actual Trade" row first per group
     const tradesByActualId = new Map<number, typeof allTrades>();
@@ -485,7 +490,9 @@ async function main() {
       const tradesFile = join(exportDir, `run-${runId}-scenario-trades.csv`);
       writeFileSync(tradesFile, tradesCSV);
       console.log(
-        `✓ Exported comprehensive trades CSV (${processedTrades.length} rows: ${uniqueActualTrades.size} trades × ${numScenarios + 1} rows/trade): ${tradesFile}`
+        `✓ Exported comprehensive trades CSV (${processedTrades.length} rows: ${uniqueActualTrades.size} trades × ${(
+          simulatedRowsPerTrade + 1
+        ).toFixed(0)} rows/trade): ${tradesFile}`
       );
     }
 
