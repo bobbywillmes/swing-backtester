@@ -77,8 +77,8 @@ export function ScenarioExplorerPage() {
   const [statusFilter, setStatusFilter] = useState<FilterValue>("ALL");
   const [exitReasonFilter, setExitReasonFilter] = useState<FilterValue>("ALL");
   const [entryTypeFilter, setEntryTypeFilter] = useState<FilterValue>("ALL");
-  const [sortKey, setSortKey] = useState<SortKey>("pnlVsActualDollar");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [sortKey, setSortKey] = useState<SortKey>("entryTs");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   useEffect(() => {
     if (!Number.isFinite(runId) || !Number.isFinite(scenarioId)) {
