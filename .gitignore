@@ -12,6 +12,7 @@ pnpm-debug.log*
 
 # Build & dist
 dist/
+dist-web/
 build/
 *.tsbuildinfo
 

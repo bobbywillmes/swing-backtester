@@ -7,6 +7,8 @@
     "dev": "tsx watch",
     "api": "tsx src/api/server.ts",
     "api:dev": "tsx watch src/api/server.ts",
+    "web:dev": "vite --config apps/web/vite.config.ts",
+    "web:build": "vite build --config apps/web/vite.config.ts",
     "build": "tsc",
     "test": "node --import tsx --test \"tests/**/*.test.ts\"",
     "seed": "tsx prisma/seed.ts",
